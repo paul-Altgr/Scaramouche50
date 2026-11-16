@@ -45,16 +45,16 @@ input[type=time]::-webkit-calendar-picker-indicator,input[type=date]::-webkit-ca
 .rp span{flex-basis:100%;text-align:right;font-size:11px;color:var(--mut)}.rp em{color:var(--mut)}
 .rp b{border:1px solid var(--c);border-radius:3px;padding:1px 6px;font:600 13px Jost,sans-serif;color:var(--gold2)}
 .legend{display:flex;gap:14px;color:var(--mut)}.legend i{display:inline-block;width:10px;height:10px;margin-right:5px;border-radius:2px}
-main{display:grid;grid-template-columns:400px minmax(420px,1.7fr) minmax(240px,1fr);gap:18px;padding:18px 20px;align-items:start}
+main{display:grid;grid-template-columns:minmax(460px,1fr) max-content max-content;gap:18px;padding:18px 20px;align-items:start}
 .col{display:flex;flex-direction:column;gap:18px}
 .room{border:1px solid var(--gold);background:var(--panel);padding:12px;border-radius:6px}
 .room h3{font-size:16px;margin-bottom:10px;color:var(--gold)}
 .rows{display:flex;flex-direction:column;gap:10px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.piste{position:relative;--c:var(--gold);display:grid;grid-template-columns:40px 1fr 1fr;gap:6px 8px;align-items:center;min-height:84px;padding:8px 10px;border:1px solid var(--line);border-left:4px solid var(--c);border-radius:4px;background:var(--ink)}
+.piste{position:relative;--c:var(--gold);display:grid;grid-template-columns:30px 92px 92px;gap:6px;align-items:center;min-height:84px;padding:8px;border:1px solid var(--line);border-left:4px solid var(--c);border-radius:4px;background:var(--ink)}
 .piste.set{background:color-mix(in srgb,var(--c) 30%,var(--ink));border-color:var(--c)}
-.piste .num{font:700 28px 'Cormorant Garamond',serif;color:var(--gold2);cursor:pointer;text-align:center}
-.cap{grid-column:2/4;font-size:15px;min-height:20px;color:var(--gold2)}.cap span{color:var(--mut);margin-left:6px}
-.piste select{min-width:0;width:100%;padding:7px 6px;font-size:13px;background:color-mix(in srgb,var(--ink) 60%,transparent)}
+.piste .num{font:700 24px 'Cormorant Garamond',serif;color:var(--gold2);cursor:pointer;text-align:center}
+.cap{grid-column:2/4;font-size:14px;min-height:20px;color:var(--gold2)}.cap span{color:var(--mut);margin-left:6px}
+.piste select{min-width:0;width:100%;padding:6px 3px;font-size:12px;background:color-mix(in srgb,var(--ink) 60%,transparent)}
 .avance{min-height:300px;border:1px solid var(--gold);background:var(--panel);border-radius:6px;padding:12px}
 .avance h3{font-size:16px;color:var(--gold)}
 .dispo{border-bottom:1px solid var(--gold);padding:12px 20px}
@@ -72,7 +72,7 @@ main{display:grid;grid-template-columns:400px minmax(420px,1.7fr) minmax(240px,1
 input[type=color]{padding:0;width:44px;height:32px}
 .err{color:#e0735f;min-height:20px}.login{width:min(360px,100%);display:flex;flex-direction:column;gap:10px}
 #st{color:var(--mut);font-size:12px}
-@media(max-width:1100px){main{grid-template-columns:1fr}.dg{grid-template-columns:1fr}}
+@media(max-width:1100px){main{grid-template-columns:1fr}.dg{grid-template-columns:1fr}.piste{grid-template-columns:40px 1fr 1fr}}
 @media(prefers-reduced-motion:no-preference){.piste{transition:background .25s,border-color .25s}}
 
 [data-theme=sombre]{--bg:#121417;--panel:#1a1d21;--line:#2f343b;--gold:#6ea8fe;--gold2:#a9c8ff;--txt:#e6e8eb;--mut:#8a919a;--ink:#0d0f11;--onacc:#0d0f11}
@@ -286,7 +286,8 @@ const hm=t=>{const a=t.split(":");return+a[0]*60+ +a[1]};
 const nowSec=()=>{const d=new Date();return d.getHours()*3600+d.getMinutes()*60+d.getSeconds()};
 const fmt=x=>{x=Math.max(0,x);const h=Math.floor(x/3600),m=Math.floor(x%3600/60),q=x%60,p=n=>String(n).padStart(2,"0");return h?h+":"+p(m)+":"+p(q):p(m)+":"+p(q)};
 const ts=t=>{const d=S.dates&&S.dates[day];if(d)return new Date(d+"T"+t+":00").getTime();const x=new Date(),a=t.split(":");x.setHours(+a[0],+a[1],0,0);return x.getTime()};
-const since=t=>fmt(Math.floor((Date.now()-ts(t))/1000));
+const tsNow=t=>{const x=new Date(),a=t.split(":");x.setHours(+a[0],+a[1],0,0);return x.getTime()};
+const since=t=>{const d=S.dates&&S.dates[day],fut=d&&d>iso(new Date());return fmt(Math.floor((Date.now()-(fut?tsNow(t):ts(t)))/1000))};
 function tick(){document.querySelectorAll("[data-since]").forEach(el=>el.textContent=since(el.dataset.since))}
 function renderLaunch(){const wait=[],start=[];
  for(const w of Object.keys(W))for(const c of S.cats[day].filter(c=>c.weapon===w)){
