@@ -45,15 +45,15 @@ input[type=time]::-webkit-calendar-picker-indicator,input[type=date]::-webkit-ca
 .rp span{flex-basis:100%;text-align:right;font-size:11px;color:var(--mut)}.rp em{color:var(--mut)}
 .rp b{border:1px solid var(--c);border-radius:3px;padding:1px 6px;font:600 13px Jost,sans-serif;color:var(--gold2)}
 .legend{display:flex;gap:14px;color:var(--mut)}.legend i{display:inline-block;width:10px;height:10px;margin-right:5px;border-radius:2px}
-main{display:grid;grid-template-columns:minmax(460px,1fr) max-content max-content;gap:18px;padding:18px 20px;align-items:start}
+main{display:grid;grid-template-columns:minmax(550px,1.2fr) minmax(500px,2fr) minmax(250px,1fr);gap:18px;padding:18px 20px;align-items:start}
 .col{display:flex;flex-direction:column;gap:18px}
 .room{border:1px solid var(--gold);background:var(--panel);padding:12px;border-radius:6px}
 .room h3{font-size:16px;margin-bottom:10px;color:var(--gold)}
 .rows{display:flex;flex-direction:column;gap:10px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.piste{position:relative;--c:var(--gold);display:grid;grid-template-columns:30px 92px 92px;gap:6px;align-items:center;min-height:84px;padding:8px;border:1px solid var(--line);border-left:4px solid var(--c);border-radius:4px;background:var(--ink)}
+.piste{position:relative;--c:var(--gold);display:grid;grid-template-columns:34px minmax(0,1fr) minmax(0,1fr);gap:6px;align-items:center;min-height:92px;padding:8px;border:1px solid var(--line);border-left:4px solid var(--c);border-radius:4px;background:var(--ink)}
 .piste.set{background:color-mix(in srgb,var(--c) 30%,var(--ink));border-color:var(--c)}
 .piste .num{font:700 24px 'Cormorant Garamond',serif;color:var(--gold2);cursor:pointer;text-align:center}
-.cap{grid-column:2/4;font-size:14px;min-height:20px;color:var(--gold2)}.cap span{color:var(--mut);margin-left:6px}
+.cap{grid-column:2/4;font-size:14px;min-height:20px;color:var(--gold2)}.cap span{color:var(--mut);margin-left:6px}.cap .ct{color:var(--gold2)}
 .piste select{min-width:0;width:100%;padding:6px 3px;font-size:12px;background:color-mix(in srgb,var(--ink) 60%,transparent)}
 .avance{min-height:300px;border:1px solid var(--gold);background:var(--panel);border-radius:6px;padding:12px}
 .avance h3{font-size:16px;color:var(--gold)}
@@ -176,7 +176,7 @@ function pisteHTML(id,C,used){
   ${cat?`<i class="ts">${lastStart(cat.id)}</i>`:""}<b class="num" data-p="${id}" title="Cliquer pour renommer">${esc(S.labels[id]||pad(id))}</b>
   <select data-k="cat" data-p="${id}"><option value="">Catégorie</option>${C.map(c=>`<option value="${c.id}"${c.id===a.cat?" selected":""}>${esc(c.name)}</option>`).join("")}</select>
   <select data-k="ref" data-p="${id}"><option value="">Arbitre</option>${refs.map(r=>`<option value="${r.id}"${r.id===a.ref?" selected":""}>${esc(r.name)} · ${lvTxt(r,w)}</option>`).join("")}</select>
-  <div class="cap">${cur?`<b>${esc(cur.name)}</b><span>${lvTxt(cur,w)}</span>`:""}</div></div>`}
+  <div class="cap">${cur?`<b>${esc(cur.name)}</b><span>${lvTxt(cur,w)}</span>`:""}${cat?`<span class="ct">${cur?"· ":""}${esc(cat.name)}</span>`:""}</div></div>`}
 function render(){normalize();
  renderRecap();renderProg();renderLaunch();
  renderDays();
