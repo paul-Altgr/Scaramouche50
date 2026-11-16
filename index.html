@@ -20,15 +20,16 @@ header h1{font-size:28px;letter-spacing:.04em}
 .days button.on{background:var(--gold);color:#000;border-color:var(--gold)}
 .sp{flex:1}
 .legend{display:flex;gap:14px;color:var(--mut)}.legend i{display:inline-block;width:10px;height:10px;margin-right:5px;border-radius:2px}
-main{display:grid;grid-template-columns:270px minmax(300px,1fr) 540px;gap:18px;padding:18px 20px;align-items:start}
+main{display:grid;grid-template-columns:400px minmax(260px,1fr) 680px;gap:18px;padding:18px 20px;align-items:start}
 .col{display:flex;flex-direction:column;gap:18px}
 .room{border:1px solid var(--gold);background:var(--panel);padding:12px;border-radius:6px}
 .room h3{font-size:16px;margin-bottom:10px;color:var(--gold)}
-.rows{display:flex;flex-direction:column;gap:8px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.piste{--c:var(--gold);display:grid;grid-template-columns:34px 1fr 1fr;gap:6px;align-items:center;height:46px;padding:4px 6px;border:1px solid var(--line);border-left:4px solid var(--c);border-radius:4px;background:#000}
+.rows{display:flex;flex-direction:column;gap:10px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.piste{--c:var(--gold);display:grid;grid-template-columns:40px 1fr 1fr;gap:6px 8px;align-items:center;min-height:84px;padding:8px 10px;border:1px solid var(--line);border-left:4px solid var(--c);border-radius:4px;background:#000}
 .piste.set{background:color-mix(in srgb,var(--c) 30%,#000);border-color:var(--c)}
-.piste .num{font:700 20px 'Cormorant Garamond',serif;color:var(--gold2);cursor:pointer;text-align:center}
-.piste select{min-width:0;width:100%;padding:3px 4px;font-size:12px;background:rgba(0,0,0,.6)}
+.piste .num{font:700 28px 'Cormorant Garamond',serif;color:var(--gold2);cursor:pointer;text-align:center}
+.cap{grid-column:2/4;font-size:15px;min-height:20px;color:var(--gold2)}.cap span{color:var(--mut);margin-left:6px}
+.piste select{min-width:0;width:100%;padding:7px 6px;font-size:13px;background:rgba(0,0,0,.6)}
 .avance{min-height:300px;border:1px solid var(--gold);background:var(--panel);border-radius:6px;padding:12px}
 .avance h3{font-size:16px;color:var(--gold)}
 .dispo{border-bottom:1px solid var(--gold);padding:12px 20px}
@@ -65,10 +66,9 @@ input[type=color]{padding:0;width:44px;height:32px}
 </header>
 <section class="dispo"><h2>Arbitres disponibles</h2><div class="dg" id="dispo"></div></section>
 <main>
-<div class="col"><div class="room"><h3>Salle 1</h3><div class="rows" id="r1"></div></div>
-<div class="room"><h3>Salle 2</h3><div class="rows" id="r2"></div></div></div>
+<div class="room"><h3>Salle 2</h3><div class="rows" id="r2"></div></div>
 <div class="avance"><h3>Avancement des compétitions</h3></div>
-<div class="room"><h3>Salle 3</h3><div class="two"><div class="rows" id="r3"></div><div class="rows" id="r4"></div></div></div>
+<div class="room"><h3>Salle 1</h3><div class="two"><div class="rows" id="r3"></div><div class="rows" id="r4"></div></div></div>
 </main>
 
 <div class="ov" id="cfgOv"><div class="box">
@@ -84,8 +84,11 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const W={epee:"Épée",fleuret:"Fleuret",sabre:"Sabre"},AB={epee:"EP",fleuret:"FL",sabre:"SA"};
 const LV=["fdep","dep","freg","reg","fnat","nat","fint","int"];
 const DN={sat:"Samedi",sun:"Dimanche"};
-const ROOMS={r1:[25,24,23,22,21,20],r2:[19,18,17,16,15,14,13],r3:[12,10,8,6,4,2],r4:[11,9,7,5,3,1]};
+const ROOMS={r2:[25,24,23,22,21,20,19,18,17,16,15,14,13],r3:[12,10,8,6,4,2],r4:[11,9,7,5,3,1]};
 const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const lvTxt=(r,w)=>w?(r.lv[w]||"—"):(Object.keys(r.lv).map(k=>AB[k]+" "+r.lv[k]).join(", ")||"—");
+const other=()=>day==="sat"?"sun":"sat";
+function sync(r){if(!r.both)return;let o=S.refs[other()].find(x=>x.id===r.id);if(!o){o={id:r.id};S.refs[other()].push(o)}o.name=r.name;o.lv={...r.lv};o.both=true}
 const pad=n=>String(n).padStart(2,"0");
 const cats=p=>Array.from({length:8},(_,i)=>({id:p+(i+1),name:(p==="sat"?"samedi":"dimanche")+(i+1),weapon:"epee"}));
 let S={labels:{},colors:{epee:"#c0392b",fleuret:"#2f6fdc",sabre:"#2e9e5b"},cats:{sat:cats("sat"),sun:cats("sun")},refs:{sat:[],sun:[]},assign:{sat:{},sun:{}}};
@@ -107,11 +110,12 @@ function render(){
   return`<div style="--c:${S.colors[w]}"><h3>${W[w]}</h3>${l.map(r=>`<p>${esc(r.name)}<span>${r.lv[w]}</span></p>`).join("")||'<p><span>—</span></p>'}</div>`}).join("");
  for(const k in ROOMS)$("#"+k).innerHTML=ROOMS[k].map(id=>{
   const a=S.assign[day][id]||{},cat=C.find(c=>c.id===a.cat),w=cat&&cat.weapon;
-  const refs=S.refs[day].filter(r=>r.id===a.ref||(!used.has(r.id)&&(!w||r.lv[w])));
+  const cur=S.refs[day].find(r=>r.id===a.ref);const refs=S.refs[day].filter(r=>r.id===a.ref||(!used.has(r.id)&&(!w||r.lv[w])));
   return`<div class="piste${cat?" set":""}" style="--c:${w?S.colors[w]:"var(--gold)"}">
   <b class="num" data-p="${id}" title="Cliquer pour renommer">${esc(S.labels[id]||pad(id))}</b>
   <select data-k="cat" data-p="${id}"><option value="">Catégorie</option>${C.map(c=>`<option value="${c.id}"${c.id===a.cat?" selected":""}>${esc(c.name)}</option>`).join("")}</select>
-  <select data-k="ref" data-p="${id}"><option value="">Arbitre</option>${refs.map(r=>`<option value="${r.id}"${r.id===a.ref?" selected":""}>${esc(r.name)}${w&&r.lv[w]?" ("+r.lv[w]+")":""}</option>`).join("")}</select></div>`}).join("");
+  <select data-k="ref" data-p="${id}"><option value="">Arbitre</option>${refs.map(r=>`<option value="${r.id}"${r.id===a.ref?" selected":""}>${esc(r.name)} · ${lvTxt(r,w)}</option>`).join("")}</select>
+  <div class="cap">${cur?`<b>${esc(cur.name)}</b><span>${lvTxt(cur,w)}</span>`:""}</div></div>`}).join("");
 }
 document.addEventListener("change",e=>{const t=e.target,p=t.dataset.p;if(!p||!t.dataset.k)return;
  const A=S.assign[day];A[p]=A[p]||{};A[p][t.dataset.k]=t.value;save();render()});
@@ -125,17 +129,20 @@ function cfg(){$("#cfgDay").textContent=DN[day];
  const B=$("#cfgBody"),wo=s=>Object.keys(W).map(w=>`<option value="${w}"${w===s?" selected":""}>${W[w]}</option>`).join("");
  if(tab==="cat")B.innerHTML=S.cats[day].map(c=>`<div class="rowc"><input type="text" value="${esc(c.name)}" data-c="${c.id}" data-f="name"><select data-c="${c.id}" data-f="weapon">${wo(c.weapon)}</select></div>`).join("");
  if(tab==="col")B.innerHTML=Object.keys(W).map(w=>`<div class="rowc"><input type="color" value="${S.colors[w]}" data-w="${w}"> ${W[w]}</div>`).join("");
- if(tab==="ref")B.innerHTML=S.refs[day].map(r=>`<div class="rowc" style="border-bottom:1px solid var(--line);padding-bottom:8px"><input type="text" value="${esc(r.name)}" data-r="${r.id}" data-f="name"><button data-del="${r.id}">Supprimer</button>
-  ${Object.keys(W).map(w=>`<label class="lv">${AB[w]}<select data-r="${r.id}" data-w="${w}"><option value="">—</option>${LV.map(l=>`<option${r.lv[w]===l?" selected":""}>${l}</option>`).join("")}</select></label>`).join("")}</div>`).join("")+'<div class="rowc"><button id="addRef">Ajouter un arbitre</button></div>';
+ if(tab==="ref")B.innerHTML=S.refs[day].map(r=>`<div class="rowc" style="border-bottom:1px solid var(--line);padding-bottom:8px"><input type="text" value="${esc(r.name)}" data-r="${r.id}" data-f="name"><button data-del="${r.id}">Supprimer</button><label class="lv"><input type="checkbox" data-r="${r.id}" data-both="1"${r.both?" checked":""}> 2 jours</label>
+  ${Object.keys(W).map(w=>`<label class="lv">${AB[w]}<select data-r="${r.id}" data-w="${w}"><option value="">—</option>${LV.map(l=>`<option${r.lv[w]===l?" selected":""}>${l}</option>`).join("")}</select></label>`).join("")}</div>`).join("")+'<div class="rowc"><button id="addRef">Ajouter un arbitre</button><label class="lv"><input type="checkbox" id="both"> Présent les deux jours</label></div>';
 }
 $("#cfgBody").addEventListener("change",e=>{const t=e.target,d=t.dataset;
  if(d.c)S.cats[day].find(c=>c.id===d.c)[d.f]=t.value;
- else if(d.r){const r=S.refs[day].find(x=>x.id===d.r);if(d.f)r.name=t.value;else if(t.value)r.lv[d.w]=t.value;else delete r.lv[d.w]}
+ else if(d.r){const r=S.refs[day].find(x=>x.id===d.r);
+  if(d.both){r.both=t.checked;const o=S.refs[other()].find(x=>x.id===r.id);if(r.both)sync(r);else if(o)o.both=false}
+  else{if(d.f)r.name=t.value;else if(t.value)r.lv[d.w]=t.value;else delete r.lv[d.w];sync(r)}}
  else if(d.w)S.colors[d.w]=t.value;
  save();render()});
 $("#cfgBody").addEventListener("click",e=>{const t=e.target;
- if(t.id==="addRef"){S.refs[day].push({id:"r"+Date.now(),name:"Nouvel arbitre",lv:{}});save();render();cfg()}
- if(t.dataset.del&&confirm("Supprimer cet arbitre ?")){S.refs[day]=S.refs[day].filter(r=>r.id!==t.dataset.del);save();render();cfg()}});
+ if(t.id==="addRef"){const r={id:"r"+Date.now(),name:"Nouvel arbitre",lv:{},both:$("#both").checked};S.refs[day].push(r);sync(r);save();render();cfg()}
+ if(t.dataset.del){const r=S.refs[day].find(x=>x.id===t.dataset.del);
+  if(confirm(r.both?"Supprimer cet arbitre des deux jours ?":"Supprimer cet arbitre ?")){(r.both?["sat","sun"]:[day]).forEach(k=>S.refs[k]=S.refs[k].filter(x=>x.id!==r.id));save();render();cfg()}}});
 $("#cfgBtn").onclick=()=>{$("#cfgOv").classList.add("show");cfg()};
 $("#cfgClose").onclick=()=>$("#cfgOv").classList.remove("show");
 
