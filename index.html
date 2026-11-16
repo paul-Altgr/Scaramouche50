@@ -54,7 +54,8 @@ input[type=color]{padding:0;width:44px;height:32px}
 <div class="ov" id="loginOv"><div class="box login"><h2>Connexion</h2>
 <input id="em" type="email" placeholder="Email" autocomplete="username">
 <input id="pw" type="password" placeholder="Mot de passe" autocomplete="current-password">
-<button id="go">Se connecter</button><div class="err" id="err"></div></div></div>
+<button id="go">Se connecter</button>
+<button id="su" type="button" style="display:none">Créer un compte</button><div class="err" id="err"></div></div></div>
 
 <header>
 <h1>Pistes d’escrime</h1>
@@ -140,6 +141,14 @@ $("#cfgClose").onclick=()=>$("#cfgOv").classList.remove("show");
 
 $("#go").onclick=async()=>{const{error}=await sb.auth.signInWithPassword({email:$("#em").value,password:$("#pw").value});
  $("#err").textContent=error?"Identifiants incorrects":""};
+// ▼▼ Mets false pour masquer le bouton « Créer un compte » ▼▼
+const ALLOW_SIGNUP=true;
+if(ALLOW_SIGNUP)$("#su").style.display="block";
+$("#su").onclick=async()=>{const e=$("#err");e.style.color="";
+ if(!$("#em").value||$("#pw").value.length<6){e.textContent="Email et mot de passe (6 caractères min.) requis";return}
+ const{data,error}=await sb.auth.signUp({email:$("#em").value,password:$("#pw").value});
+ if(error){e.textContent=error.message;return}
+ if(!data.session){e.style.color="#c9a45c";e.textContent="Compte créé. Confirme ton email (vérifie les spams) puis connecte-toi."}};
 $("#pw").onkeydown=e=>{if(e.key==="Enter")$("#go").click()};
 $("#out").onclick=()=>sb.auth.signOut();
 async function load(){const{data,error}=await sb.from("app_state").select("value").eq("key","state").maybeSingle();
