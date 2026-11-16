@@ -86,7 +86,7 @@ input[type=color]{padding:0;width:44px;height:32px}
 <header>
 <h1>SCARAMOUCHE 50</h1>
 <div class="days"><button data-d="sat">Samedi</button><button data-d="sun">Dimanche</button></div>
-<div class="legend" id="legend"></div><div class="views"><button data-v="plan">Plan</button><button data-v="prog">Tableau d’avancement</button></div><span class="sp"></span><span id="st"></span>
+<div class="legend" id="legend"></div><div class="views"><button data-v="plan">Plan</button><button data-v="prog">Tableau d’avancement</button></div><span class="sp"></span><span id="st"></span><button id="ref" title="Recharger les données depuis le serveur">↻ Actualiser</button>
 <button id="cfgBtn">Configuration</button>
 <div class="menu"><button id="burger" aria-label="Menu" aria-expanded="false">☰</button><div class="mlist" id="mlist"><button id="exp">Exporter</button><button id="imp">Importer</button><button id="out">Déconnexion</button></div></div><input type="file" id="impf" accept=".json" hidden>
 </header>
@@ -119,38 +119,19 @@ const other=()=>day==="sat"?"sun":"sat";
 function sync(r){if(!r.both)return;let o=S.refs[other()].find(x=>x.id===r.id);if(!o){o={id:r.id};S.refs[other()].push(o)}o.name=r.name;o.lv={...r.lv};o.both=true}
 const pad=n=>String(n).padStart(2,"0");
 const cats=p=>Array.from({length:8},(_,i)=>({id:p+(i+1),name:(p==="sat"?"samedi":"dimanche")+(i+1),weapon:"epee"}));
-let S={labels:{},colors:{epee:"#c0392b",fleuret:"#2f6fdc",sabre:"#2e9e5b"},cats:{sat:cats("sat"),sun:cats("sun")},refs:{sat:[],sun:[]},assign:{sat:{},sun:{}},prog:{sat:{},sun:{}},rev:0,off:{sat:["t256","t128"],sun:["t256","t128"]}};
-let day="sat",tab="cat",timer,loaded=false,dirty=false,busy=false,rowExists=false;
+let S={labels:{},colors:{epee:"#c0392b",fleuret:"#2f6fdc",sabre:"#2e9e5b"},cats:{sat:cats("sat"),sun:cats("sun")},refs:{sat:[],sun:[]},assign:{sat:{},sun:{}},prog:{sat:{},sun:{}},off:{sat:["t256","t128"],sun:["t256","t128"]}};
+let day="sat",tab="cat",timer,loaded=false;
 
 function clean(){for(const d of["sat","sun"]){const A=S.assign[d],seen={};
  for(const p in A){const a=A[p],c=S.cats[d].find(x=>x.id===a.cat),r=S.refs[d].find(x=>x.id===a.ref);
   if(a.cat&&!c)a.cat="";if(a.ref&&(!r||r.absent||!c||!r.lv[c.weapon]||seen[a.ref]))a.ref="";if(a.ref)seen[a.ref]=1}}}
-function save(){clean();dirty=true;$("#st").textContent="Enregistrement…";clearTimeout(timer);timer=setTimeout(push,600)}
-// Enregistrement protégé : on n'écrase le serveur que si personne d'autre n'a modifié les données entre-temps (numéro de version "rev")
-async function push(){
- if(!loaded)return;
- if(busy){timer=setTimeout(push,300);return}
- busy=true;dirty=false;
- const base=S.rev||0,next={...S,rev:base+1};let ok=false,err=null;
- if(rowExists){let q=sb.from("app_state").update({value:next}).eq("key","state");
-  q=base===0?q.or("value->>rev.is.null,value->>rev.eq.0"):q.eq("value->>rev",String(base));
-  const r=await q.select("key");err=r.error;ok=!err&&!!r.data&&r.data.length>0}
- else{const r=await sb.from("app_state").insert({key:"state",value:next});err=r.error;ok=!err;if(ok)rowExists=true}
- busy=false;
- if(ok){S.rev=base+1;if(!dirty)$("#st").textContent="Enregistré";return}
- if(err&&err.code!=="23505"){$("#st").textContent="Erreur d’enregistrement";console.error(err);dirty=true;return}
- await pull(true);
- alert("Les données ont été modifiées sur un autre appareil. La version la plus récente vient d’être rechargée : ta dernière modification n’a pas été enregistrée, refais-la.")}
-async function pull(force){
+function save(){clean();$("#st").textContent="Enregistrement…";clearTimeout(timer);
+ timer=setTimeout(async()=>{const{error}=await sb.from("app_state").upsert({key:"state",value:S});
+  $("#st").textContent=error?"Erreur d’enregistrement":"Enregistré";if(error)console.error(error)},600)}
+$("#ref").onclick=async()=>{if(!loaded)return;$("#st").textContent="Actualisation…";
  const{data,error}=await sb.from("app_state").select("value").eq("key","state").maybeSingle();
- if(error){console.error(error);return false}
- rowExists=!!data;
- if(data&&data.value&&(force||(data.value.rev||0)>(S.rev||0))){Object.assign(S,data.value);render();$("#st").textContent="Mis à jour"}
- return true}
-async function poll(){if(!loaded||dirty||busy||document.hidden)return;
- const a=document.activeElement;if(a&&/INPUT|SELECT/.test(a.tagName)&&a.closest("main,#prog,#recap,.ov.show"))return;
- await pull(false)}
-setInterval(poll,8000);window.addEventListener("focus",poll);document.addEventListener("visibilitychange",()=>{if(!document.hidden)poll()});
+ if(error){$("#st").textContent="Erreur d’actualisation";console.error(error);return}
+ if(data&&data.value){Object.assign(S,data.value);render()}$("#st").textContent="Données actualisées"};
 const placed=()=>new Set(Object.values(S.assign[day]).map(a=>a.ref).filter(Boolean));
 
 function render(){
@@ -239,7 +220,7 @@ $("#exp").onclick=()=>{const a=document.createElement("a");a.href=URL.createObje
 $("#imp").onclick=()=>$("#impf").click();
 $("#impf").onchange=async e=>{const f=e.target.files[0];if(!f)return;
  try{const o=JSON.parse(await f.text());if(!o.cats||!o.refs)throw 0;
-  if(confirm("Remplacer toutes les données actuelles par cette sauvegarde ?")){S=Object.assign(S,o,{rev:S.rev});save();render()}}catch{alert("Fichier de sauvegarde invalide")}e.target.value=""};
+  if(confirm("Remplacer toutes les données actuelles par cette sauvegarde ?")){S=Object.assign(S,o);save();render()}}catch{alert("Fichier de sauvegarde invalide")}e.target.value=""};
 showView();
 $("#burger").onclick=e=>{e.stopPropagation();const o=$("#mlist").classList.toggle("show");$("#burger").setAttribute("aria-expanded",o)};
 $("#mlist").onclick=()=>$("#mlist").classList.remove("show");
@@ -261,7 +242,7 @@ $("#pw").onkeydown=e=>{if(e.key==="Enter")$("#go").click()};
 $("#out").onclick=()=>sb.auth.signOut();
 async function load(){const{data,error}=await sb.from("app_state").select("value").eq("key","state").maybeSingle();
  if(error){$("#st").textContent="Erreur de chargement (voir la table app_state)";console.error(error);return}
- rowExists=!!data;if(data&&data.value)S=Object.assign(S,data.value);loaded=true;render();$("#st").textContent=data?"Chargé":"Nouveau — rien d’enregistré"}
+ if(data&&data.value)S=Object.assign(S,data.value);loaded=true;render();$("#st").textContent=data?"Chargé":"Nouveau — rien d’enregistré"}
 sb.auth.onAuthStateChange((ev,session)=>{
  $("#loginOv").classList.toggle("show",!session);
  if(session&&!loaded)setTimeout(load,0);
