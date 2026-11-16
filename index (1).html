@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pistes d’escrime</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;700&family=Jost:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+:root{--bg:#050505;--panel:#0f0f0e;--line:#3a3220;--gold:#c9a45c;--gold2:#e8cf94;--txt:#ece6d8;--mut:#8c8472}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:400 14px/1.4 Jost,sans-serif;min-height:100vh}
+h1,h2,h3{font-family:'Cormorant Garamond',serif;font-weight:700;margin:0;color:var(--gold2)}
+button,select,input{font:inherit;color:var(--txt);background:#000;border:1px solid var(--line);border-radius:4px;padding:6px 8px}
+button{cursor:pointer;color:var(--gold2)}button:hover{border-color:var(--gold)}
+:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+header{display:flex;align-items:center;gap:16px;padding:14px 20px;border-bottom:1px solid var(--gold);flex-wrap:wrap}
+header h1{font-size:28px;letter-spacing:.04em}
+.days{display:flex;gap:0}.days button{border-radius:0;padding:8px 20px}
+.days button.on{background:var(--gold);color:#000;border-color:var(--gold)}
+.sp{flex:1}
+.legend{display:flex;gap:14px;color:var(--mut)}.legend i{display:inline-block;width:10px;height:10px;margin-right:5px;border-radius:2px}
+main{display:grid;grid-template-columns:270px minmax(300px,1fr) 540px;gap:18px;padding:18px 20px;align-items:start}
+.col{display:flex;flex-direction:column;gap:18px}
+.room{border:1px solid var(--gold);background:var(--panel);padding:12px;border-radius:6px}
+.room h3{font-size:16px;margin-bottom:10px;color:var(--gold)}
+.rows{display:flex;flex-direction:column;gap:8px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.piste{--c:var(--gold);display:grid;grid-template-columns:34px 1fr 1fr;gap:6px;align-items:center;height:46px;padding:4px 6px;border:1px solid var(--line);border-left:4px solid var(--c);border-radius:4px;background:#000}
+.piste.set{background:color-mix(in srgb,var(--c) 30%,#000);border-color:var(--c)}
+.piste .num{font:700 20px 'Cormorant Garamond',serif;color:var(--gold2);cursor:pointer;text-align:center}
+.piste select{min-width:0;width:100%;padding:3px 4px;font-size:12px;background:rgba(0,0,0,.6)}
+.avance{min-height:300px;border:1px solid var(--gold);background:var(--panel);border-radius:6px;padding:12px}
+.avance h3{font-size:16px;color:var(--gold)}
+.dispo{border-bottom:1px solid var(--gold);padding:12px 20px}
+.dispo>h2{font-size:20px;margin-bottom:8px}
+.dg{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.dg div{--c:var(--gold);border:1px solid var(--c);border-radius:6px;padding:8px 10px;min-height:70px;max-height:150px;overflow:auto;background:color-mix(in srgb,var(--c) 10%,#000)}
+.dg h3{font-size:15px;color:var(--c);margin-bottom:4px}
+.dg p{margin:2px 0;display:flex;justify-content:space-between;gap:8px}.dg p span{color:var(--mut)}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;z-index:9;padding:16px}
+.ov.show{display:flex}
+.box{background:var(--panel);border:1px solid var(--gold);border-radius:8px;padding:22px;width:min(760px,100%);max-height:90vh;overflow:auto}
+.box h2{margin-bottom:12px}.tabs{display:flex;gap:6px;margin-bottom:14px}.tabs button.on{background:var(--gold);color:#000}
+.rowc{display:flex;gap:8px;align-items:center;margin:6px 0;flex-wrap:wrap}
+.rowc>input[type=text]{flex:1;min-width:120px}.lv{display:flex;gap:4px;align-items:center;color:var(--mut)}
+input[type=color]{padding:0;width:44px;height:32px}
+.err{color:#e0735f;min-height:20px}.login{width:min(360px,100%);display:flex;flex-direction:column;gap:10px}
+#st{color:var(--mut);font-size:12px}
+@media(max-width:1100px){main{grid-template-columns:1fr}.dg{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:no-preference){.piste{transition:background .25s,border-color .25s}}
+</style>
+</head>
+<body>
+<div class="ov" id="loginOv"><div class="box login"><h2>Connexion</h2>
+<input id="em" type="email" placeholder="Email" autocomplete="username">
+<input id="pw" type="password" placeholder="Mot de passe" autocomplete="current-password">
+<button id="go">Se connecter</button><div class="err" id="err"></div></div></div>
+
+<header>
+<h1>Pistes d’escrime</h1>
+<div class="days"><button data-d="sat">Samedi</button><button data-d="sun">Dimanche</button></div>
+<div class="legend" id="legend"></div><span class="sp"></span><span id="st"></span>
+<button id="cfgBtn">Configuration</button><button id="out">Déconnexion</button>
+</header>
+<section class="dispo"><h2>Arbitres disponibles</h2><div class="dg" id="dispo"></div></section>
+<main>
+<div class="col"><div class="room"><h3>Salle 1</h3><div class="rows" id="r1"></div></div>
+<div class="room"><h3>Salle 2</h3><div class="rows" id="r2"></div></div></div>
+<div class="avance"><h3>Avancement des compétitions</h3></div>
+<div class="room"><h3>Salle 3</h3><div class="two"><div class="rows" id="r3"></div><div class="rows" id="r4"></div></div></div>
+</main>
+
+<div class="ov" id="cfgOv"><div class="box">
+<h2>Configuration — <span id="cfgDay"></span></h2>
+<div class="tabs"><button data-t="cat">Catégories</button><button data-t="ref">Arbitres</button><button data-t="col">Couleurs</button></div>
+<div id="cfgBody"></div><div class="rowc"><span class="sp"></span><button id="cfgClose">Fermer</button></div>
+</div></div>
+
+<script>
+const SUPABASE_URL="https://jdknzqutmrocepaxzkqs.supabase.co";
+const SUPABASE_KEY="sb_publishable_0Nx-jsettHr0ZOkL252giQ_DtnkYKUD";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const W={epee:"Épée",fleuret:"Fleuret",sabre:"Sabre"},AB={epee:"EP",fleuret:"FL",sabre:"SA"};
+const LV=["fdep","dep","freg","reg","fnat","nat","fint","int"];
+const DN={sat:"Samedi",sun:"Dimanche"};
+const ROOMS={r1:[25,24,23,22,21,20],r2:[19,18,17,16,15,14,13],r3:[12,10,8,6,4,2],r4:[11,9,7,5,3,1]};
+const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const cats=p=>Array.from({length:8},(_,i)=>({id:p+(i+1),name:(p==="sat"?"samedi":"dimanche")+(i+1),weapon:"epee"}));
+let S={labels:{},colors:{epee:"#c0392b",fleuret:"#2f6fdc",sabre:"#2e9e5b"},cats:{sat:cats("sat"),sun:cats("sun")},refs:{sat:[],sun:[]},assign:{sat:{},sun:{}}};
+let day="sat",tab="cat",timer,loaded=false;
+
+function clean(){for(const d of["sat","sun"]){const A=S.assign[d],seen={};
+ for(const p in A){const a=A[p],c=S.cats[d].find(x=>x.id===a.cat),r=S.refs[d].find(x=>x.id===a.ref);
+  if(a.cat&&!c)a.cat="";if(a.ref&&(!r||!c||!r.lv[c.weapon]||seen[a.ref]))a.ref="";if(a.ref)seen[a.ref]=1}}}
+function save(){clean();$("#st").textContent="Enregistrement…";clearTimeout(timer);
+ timer=setTimeout(async()=>{const{error}=await sb.from("app_state").upsert({key:"state",value:S});
+  $("#st").textContent=error?"Erreur d’enregistrement":"Enregistré";if(error)console.error(error)},600)}
+const placed=()=>new Set(Object.values(S.assign[day]).map(a=>a.ref).filter(Boolean));
+
+function render(){
+ document.querySelectorAll(".days button").forEach(b=>b.classList.toggle("on",b.dataset.d===day));
+ $("#legend").innerHTML=Object.keys(W).map(w=>`<span><i style="background:${S.colors[w]}"></i>${AB[w]}</span>`).join("");
+ const used=placed(),C=S.cats[day];
+ $("#dispo").innerHTML=Object.keys(W).map(w=>{const l=S.refs[day].filter(r=>r.lv[w]&&!used.has(r.id));
+  return`<div style="--c:${S.colors[w]}"><h3>${W[w]}</h3>${l.map(r=>`<p>${esc(r.name)}<span>${r.lv[w]}</span></p>`).join("")||'<p><span>—</span></p>'}</div>`}).join("");
+ for(const k in ROOMS)$("#"+k).innerHTML=ROOMS[k].map(id=>{
+  const a=S.assign[day][id]||{},cat=C.find(c=>c.id===a.cat),w=cat&&cat.weapon;
+  const refs=S.refs[day].filter(r=>r.id===a.ref||(!used.has(r.id)&&(!w||r.lv[w])));
+  return`<div class="piste${cat?" set":""}" style="--c:${w?S.colors[w]:"var(--gold)"}">
+  <b class="num" data-p="${id}" title="Cliquer pour renommer">${esc(S.labels[id]||pad(id))}</b>
+  <select data-k="cat" data-p="${id}"><option value="">Catégorie</option>${C.map(c=>`<option value="${c.id}"${c.id===a.cat?" selected":""}>${esc(c.name)}</option>`).join("")}</select>
+  <select data-k="ref" data-p="${id}"><option value="">Arbitre</option>${refs.map(r=>`<option value="${r.id}"${r.id===a.ref?" selected":""}>${esc(r.name)}${w&&r.lv[w]?" ("+r.lv[w]+")":""}</option>`).join("")}</select></div>`}).join("");
+}
+document.addEventListener("change",e=>{const t=e.target,p=t.dataset.p;if(!p||!t.dataset.k)return;
+ const A=S.assign[day];A[p]=A[p]||{};A[p][t.dataset.k]=t.value;save();render()});
+document.addEventListener("click",e=>{const t=e.target;
+ if(t.classList.contains("num")){const v=prompt("Numéro de la piste :",t.textContent);if(v!==null&&v.trim()){S.labels[t.dataset.p]=v.trim();save();render()}}
+ if(t.dataset.d){day=t.dataset.d;render();if($("#cfgOv").classList.contains("show"))cfg()}
+ if(t.dataset.t){tab=t.dataset.t;cfg()}});
+
+function cfg(){$("#cfgDay").textContent=DN[day];
+ document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===tab));
+ const B=$("#cfgBody"),wo=s=>Object.keys(W).map(w=>`<option value="${w}"${w===s?" selected":""}>${W[w]}</option>`).join("");
+ if(tab==="cat")B.innerHTML=S.cats[day].map(c=>`<div class="rowc"><input type="text" value="${esc(c.name)}" data-c="${c.id}" data-f="name"><select data-c="${c.id}" data-f="weapon">${wo(c.weapon)}</select></div>`).join("");
+ if(tab==="col")B.innerHTML=Object.keys(W).map(w=>`<div class="rowc"><input type="color" value="${S.colors[w]}" data-w="${w}"> ${W[w]}</div>`).join("");
+ if(tab==="ref")B.innerHTML=S.refs[day].map(r=>`<div class="rowc" style="border-bottom:1px solid var(--line);padding-bottom:8px"><input type="text" value="${esc(r.name)}" data-r="${r.id}" data-f="name"><button data-del="${r.id}">Supprimer</button>
+  ${Object.keys(W).map(w=>`<label class="lv">${AB[w]}<select data-r="${r.id}" data-w="${w}"><option value="">—</option>${LV.map(l=>`<option${r.lv[w]===l?" selected":""}>${l}</option>`).join("")}</select></label>`).join("")}</div>`).join("")+'<div class="rowc"><button id="addRef">Ajouter un arbitre</button></div>';
+}
+$("#cfgBody").addEventListener("change",e=>{const t=e.target,d=t.dataset;
+ if(d.c)S.cats[day].find(c=>c.id===d.c)[d.f]=t.value;
+ else if(d.r){const r=S.refs[day].find(x=>x.id===d.r);if(d.f)r.name=t.value;else if(t.value)r.lv[d.w]=t.value;else delete r.lv[d.w]}
+ else if(d.w)S.colors[d.w]=t.value;
+ save();render()});
+$("#cfgBody").addEventListener("click",e=>{const t=e.target;
+ if(t.id==="addRef"){S.refs[day].push({id:"r"+Date.now(),name:"Nouvel arbitre",lv:{}});save();render();cfg()}
+ if(t.dataset.del&&confirm("Supprimer cet arbitre ?")){S.refs[day]=S.refs[day].filter(r=>r.id!==t.dataset.del);save();render();cfg()}});
+$("#cfgBtn").onclick=()=>{$("#cfgOv").classList.add("show");cfg()};
+$("#cfgClose").onclick=()=>$("#cfgOv").classList.remove("show");
+
+$("#go").onclick=async()=>{const{error}=await sb.auth.signInWithPassword({email:$("#em").value,password:$("#pw").value});
+ $("#err").textContent=error?"Identifiants incorrects":""};
+$("#pw").onkeydown=e=>{if(e.key==="Enter")$("#go").click()};
+$("#out").onclick=()=>sb.auth.signOut();
+async function load(){const{data,error}=await sb.from("app_state").select("value").eq("key","state").maybeSingle();
+ if(error){$("#st").textContent="Erreur de chargement (voir la table app_state)";console.error(error);return}
+ if(data&&data.value)S=Object.assign(S,data.value);loaded=true;render();$("#st").textContent=data?"Chargé":"Nouveau — rien d’enregistré"}
+sb.auth.onAuthStateChange((ev,session)=>{
+ $("#loginOv").classList.toggle("show",!session);
+ if(session&&!loaded)setTimeout(load,0);
+ if(!session){loaded=false;$("#legend").innerHTML="";$("#dispo").innerHTML="";for(const k in ROOMS)$("#"+k).innerHTML=""}});
+</script>
+</body>
+</html>
