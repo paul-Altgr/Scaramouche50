@@ -89,6 +89,9 @@ input[type=color]{padding:0;width:44px;height:32px}
 .th{display:flex;flex-direction:column;gap:4px;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:2px}
 .th span{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.08em}
 .th button{text-align:left;padding:4px 8px}.th button.on{background:var(--gold);color:var(--onacc);border-color:var(--gold)}
+.rg{display:grid;gap:10px 12px}.ghost{min-height:84px}
+.tabs{flex-wrap:wrap}
+.cp{display:flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:4px;padding:4px 6px;background:var(--ink)}.cp b{min-width:30px;color:var(--gold2)}.cp.off{opacity:.55}.cp button{padding:2px 7px}
 </style>
 </head>
 <body>
@@ -100,16 +103,16 @@ input[type=color]{padding:0;width:44px;height:32px}
 
 <header>
 <h1>SCARAMOUCHE 50</h1>
-<div class="days"><button data-d="sat">Samedi</button><button data-d="sun">Dimanche</button></div>
+<div class="days" id="days"></div>
 <div class="legend" id="legend"></div><div class="views"><button data-v="plan">Plan</button><button data-v="prog">Tableau d’avancement</button></div><span class="sp"></span><span id="st"></span><button id="ref" title="Recharger les données depuis le serveur">↻ Actualiser</button>
 <button id="cfgBtn">Configuration</button>
 <div class="menu"><button id="burger" aria-label="Menu" aria-expanded="false">☰</button><div class="mlist" id="mlist"><button id="exp">Exporter</button><button id="imp">Importer</button><button id="out">Déconnexion</button></div></div><input type="file" id="impf" accept=".json" hidden>
 </header>
 <section class="dispo"><h2>Arbitres disponibles</h2><div class="dg" id="dispo"></div></section>
 <main>
-<div class="room"><h3>Salle 2</h3><div class="rows" id="r2"></div></div>
+<div class="col" id="roomsL"></div>
 <div class="avance"><h3>Avancement des compétitions</h3><div id="recap"></div></div>
-<div class="col"><div class="room"><h3>Salle 1</h3><div class="two"><div class="rows" id="r3"></div><div class="rows" id="r4"></div></div></div>
+<div class="col"><div id="roomsR" style="display:contents"></div>
 <div class="room"><h3>Compétitions à lancer</h3><div id="tlBody"></div></div></div>
 </main>
 
@@ -117,7 +120,7 @@ input[type=color]{padding:0;width:44px;height:32px}
 
 <div class="ov" id="cfgOv"><div class="box">
 <h2>Configuration — <span id="cfgDay"></span></h2>
-<div class="tabs"><button data-t="cat">Catégories</button><button data-t="ref">Arbitres</button><button data-t="col">Couleurs</button><button data-t="rnd">Colonnes</button><button data-t="dat">Dates</button></div>
+<div class="tabs"><button data-t="cat">Catégories</button><button data-t="ref">Arbitres</button><button data-t="col">Couleurs</button><button data-t="rnd">Colonnes</button><button data-t="dat">Dates</button><button data-t="room">Salles</button></div>
 <div id="cfgBody"></div><div class="rowc"><span class="sp"></span><button id="cfgClose">Fermer</button></div>
 </div></div>
 
@@ -127,18 +130,34 @@ const SUPABASE_KEY="sb_publishable_0Nx-jsettHr0ZOkL252giQ_DtnkYKUD";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const W={epee:"Épée",fleuret:"Fleuret",sabre:"Sabre"},AB={epee:"EP",fleuret:"FL",sabre:"SA"};
 const LV=["fdep","dep","freg","reg","fnat","nat","fint","int"];
-const DN={sat:"Samedi",sun:"Dimanche"};
-const ROOMS={r2:[25,24,23,22,21,20,19,18,17,16,15,14,13],r3:[12,10,8,6,4,2],r4:[11,9,7,5,3,1]};
+const WD=["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"];
+const wd=id=>{const d=S.dates&&S.dates[id];if(!d)return"";const x=new Date(d+"T12:00:00");return isNaN(x)?"":WD[x.getDay()]};
+function dayName(id){const n=wd(id);
+ if(!n)return id==="sat"?"Samedi":id==="sun"?"Dimanche":"Jour "+(S.days.indexOf(id)+1);
+ if(S.days.some(o=>o!==id&&wd(o)===n)){const d=S.dates[id];return n+" "+d.slice(8,10)+"/"+d.slice(5,7)}
+ return n}
+const iso=x=>x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0");
+const defRooms=()=>[{id:"r2",name:"Salle 2",cols:[[25,24,23,22,21,20,19,18,17,16,15,14,13]],hide:[]},{id:"r1",name:"Salle 1",cols:[[12,10,8,6,4,2],[11,9,7,5,3,1]],hide:[]}];
 const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const lvTxt=(r,w)=>w?(r.lv[w]||"—"):(Object.keys(r.lv).map(k=>AB[k]+" "+r.lv[k]).join(", ")||"—");
-const other=()=>day==="sat"?"sun":"sat";
-function sync(r){if(!r.both)return;let o=S.refs[other()].find(x=>x.id===r.id);if(!o){o={id:r.id};S.refs[other()].push(o)}o.name=r.name;o.lv={...r.lv};o.both=true}
+const others=()=>S.days.filter(d=>d!==day);
+function sync(r){if(!r.both)return;for(const d of others()){let o=S.refs[d].find(x=>x.id===r.id);if(!o){o={id:r.id};S.refs[d].push(o)}o.name=r.name;o.lv={...r.lv};o.both=true}}
 const pad=n=>String(n).padStart(2,"0");
 const cats=p=>Array.from({length:8},(_,i)=>({id:p+(i+1),name:(p==="sat"?"samedi":"dimanche")+(i+1),weapon:"epee"}));
-let S={labels:{},colors:{epee:"#c0392b",fleuret:"#2f6fdc",sabre:"#2e9e5b"},cats:{sat:cats("sat"),sun:cats("sun")},refs:{sat:[],sun:[]},assign:{sat:{},sun:{}},prog:{sat:{},sun:{}},dates:{sat:"2026-11-21",sun:"2026-11-22"},off:{sat:["t256","t128"],sun:["t256","t128"]}};
+let S={days:["sat","sun"],rooms:defRooms(),labels:{},colors:{epee:"#c0392b",fleuret:"#2f6fdc",sabre:"#2e9e5b"},cats:{sat:cats("sat"),sun:cats("sun")},refs:{sat:[],sun:[]},assign:{sat:{},sun:{}},prog:{sat:{},sun:{}},dates:{sat:"2026-11-21",sun:"2026-11-22"},off:{sat:["t256","t128"],sun:["t256","t128"]}};
 let day="sat",tab="cat",timer,loaded=false;
 
-function clean(){for(const d of["sat","sun"]){const A=S.assign[d],seen={};
+function normalize(){
+ if(!Array.isArray(S.days)||!S.days.length)S.days=["sat","sun"];
+ if(!Array.isArray(S.rooms))S.rooms=defRooms();
+ S.rooms.forEach(r=>{r.hide=r.hide||[];if(!Array.isArray(r.cols)||!r.cols.length)r.cols=[[]]});
+ for(const d of S.days){S.cats[d]=S.cats[d]||[];S.refs[d]=S.refs[d]||[];S.assign[d]=S.assign[d]||{};S.prog[d]=S.prog[d]||{};S.off[d]=S.off[d]||[]}
+ if(!S.days.includes(day))day=S.days[0]}
+const active=()=>{const s=new Set();for(const r of S.rooms)for(const c of r.cols)for(const p of c)if(!r.hide.includes(p))s.add(String(p));return s};
+const nextPiste=()=>Math.max(0,...S.rooms.flatMap(r=>r.cols.flat()))+1;
+function renderDays(){$("#days").innerHTML=S.days.map(d=>`<button data-d="${d}"${d===day?' class="on"':""}>${esc(dayName(d))}</button>`).join("")}
+function clean(){const AC=active();for(const d of S.days){const A=S.assign[d],seen={};
+ for(const p in A)if(!AC.has(p))delete A[p];
  for(const p in A){const a=A[p],c=S.cats[d].find(x=>x.id===a.cat),r=S.refs[d].find(x=>x.id===a.ref);
   if(a.cat&&!c)a.cat="";if(a.ref&&(!r||r.absent||!c||!r.lv[c.weapon]||seen[a.ref]))a.ref="";if(a.ref)seen[a.ref]=1}}}
 function save(){clean();$("#st").textContent="Enregistrement…";clearTimeout(timer);
@@ -150,21 +169,27 @@ $("#ref").onclick=async()=>{if(!loaded)return;$("#st").textContent="Actualisatio
  if(data&&data.value){Object.assign(S,data.value);render()}$("#st").textContent="Données actualisées"};
 const placed=()=>new Set(Object.values(S.assign[day]).map(a=>a.ref).filter(Boolean));
 
-function render(){
- renderRecap();renderProg();renderLaunch();
- document.querySelectorAll(".days button").forEach(b=>b.classList.toggle("on",b.dataset.d===day));
- $("#legend").innerHTML=Object.keys(W).map(w=>`<span><i style="background:${S.colors[w]}"></i>${AB[w]}</span>`).join("");
- const used=placed(),C=S.cats[day];
- $("#dispo").innerHTML=Object.keys(W).map(w=>{const all=S.refs[day].filter(r=>r.lv[w]&&!r.absent),l=all.filter(r=>!used.has(r.id));
-  return`<div style="--c:${S.colors[w]}"><h3>${W[w]} (${l.length}/${all.length})</h3>${l.map(r=>`<p>${esc(r.name)}<span>${r.lv[w]}</span></p>`).join("")||'<p><span>—</span></p>'}</div>`}).join("");
- for(const k in ROOMS)$("#"+k).innerHTML=ROOMS[k].map(id=>{
+function pisteHTML(id,C,used){
   const a=S.assign[day][id]||{},cat=C.find(c=>c.id===a.cat),w=cat&&cat.weapon;
   const cur=S.refs[day].find(r=>r.id===a.ref);const refs=S.refs[day].filter(r=>r.id===a.ref||(!used.has(r.id)&&!r.absent&&(!w||r.lv[w])));
   return`<div class="piste${cat?" set":""}" style="--c:${w?S.colors[w]:"var(--gold)"}">
   ${cat?`<i class="ts">${lastStart(cat.id)}</i>`:""}<b class="num" data-p="${id}" title="Cliquer pour renommer">${esc(S.labels[id]||pad(id))}</b>
   <select data-k="cat" data-p="${id}"><option value="">Catégorie</option>${C.map(c=>`<option value="${c.id}"${c.id===a.cat?" selected":""}>${esc(c.name)}</option>`).join("")}</select>
   <select data-k="ref" data-p="${id}"><option value="">Arbitre</option>${refs.map(r=>`<option value="${r.id}"${r.id===a.ref?" selected":""}>${esc(r.name)} · ${lvTxt(r,w)}</option>`).join("")}</select>
-  <div class="cap">${cur?`<b>${esc(cur.name)}</b><span>${lvTxt(cur,w)}</span>`:""}</div></div>`}).join("");
+  <div class="cap">${cur?`<b>${esc(cur.name)}</b><span>${lvTxt(cur,w)}</span>`:""}</div></div>`}
+function render(){normalize();
+ renderRecap();renderProg();renderLaunch();
+ renderDays();
+ $("#legend").innerHTML=Object.keys(W).map(w=>`<span><i style="background:${S.colors[w]}"></i>${AB[w]}</span>`).join("");
+ const used=placed(),C=S.cats[day];
+ $("#dispo").innerHTML=Object.keys(W).map(w=>{const all=S.refs[day].filter(r=>r.lv[w]&&!r.absent),l=all.filter(r=>!used.has(r.id));
+  return`<div style="--c:${S.colors[w]}"><h3>${W[w]} (${l.length}/${all.length})</h3>${l.map(r=>`<p>${esc(r.name)}<span>${r.lv[w]}</span></p>`).join("")||'<p><span>—</span></p>'}</div>`}).join("");
+ const rh=r=>{const n=r.cols.length,rows=Math.max(0,...r.cols.map(c=>c.length));let cells="";
+  for(let i=0;i<rows;i++)for(let j=0;j<n;j++){const id=r.cols[j][i];
+   if(id===undefined||r.hide.includes(id)){if(n>1)cells+='<div class="ghost"></div>'}else cells+=pisteHTML(id,C,used)}
+  return`<div class="room"><h3>${esc(r.name)}</h3><div class="rg" style="grid-template-columns:repeat(${n},1fr)">${cells}</div></div>`};
+ $("#roomsL").innerHTML=S.rooms.filter(r=>r.cols.length===1).map(rh).join("");
+ $("#roomsR").innerHTML=S.rooms.filter(r=>r.cols.length>1).map(rh).join("");
 }
 document.addEventListener("change",e=>{const t=e.target,p=t.dataset.p;if(!p||!t.dataset.k)return;
  const A=S.assign[day];A[p]=A[p]||{};A[p][t.dataset.k]=t.value;save();render()});
@@ -176,32 +201,75 @@ document.addEventListener("click",e=>{const t=e.target;
  if(t.dataset.d){day=t.dataset.d;render();if($("#cfgOv").classList.contains("show"))cfg()}
  if(t.dataset.t){tab=t.dataset.t;cfg()}});
 
-function cfg(){$("#cfgDay").textContent=DN[day];
+function roomCfg(r){const n=r.cols.length,rows=Math.max(0,...r.cols.map(c=>c.length));let cells="";
+ for(let i=0;i<rows;i++)for(let j=0;j<n;j++){const id=r.cols[j][i];
+  if(id===undefined){cells+="<div></div>";continue}
+  const h=r.hide.includes(id),a=`data-rm="${r.id}" data-pi="${id}" data-col="${j}"`;
+  cells+=`<div class="cp${h?" off":""}"><b>${esc(S.labels[id]||pad(id))}</b><label class="lv"><input type="checkbox" ${a} data-f="vis"${h?"":" checked"}> visible</label><span class="sp"></span><button ${a} data-act="up" title="Monter">↑</button><button ${a} data-act="down" title="Descendre">↓</button><button ${a} data-act="delp" title="Supprimer la piste">✕</button></div>`}
+ const side=j=>n>1?(j?" (colonne droite)":" (colonne gauche)"):"";
+ return`<div class="room" style="margin:10px 0"><div class="rowc"><input type="text" value="${esc(r.name)}" data-rm="${r.id}" data-f="name"><select data-rm="${r.id}" data-f="layout"><option value="1"${n===1?" selected":""}>1 colonne (comme Salle 2)</option><option value="2"${n===2?" selected":""}>2 colonnes (comme Salle 1)</option></select><button data-rm="${r.id}" data-act="delroom">Supprimer la salle</button></div>
+ <div class="rg" style="grid-template-columns:repeat(${n},1fr)">${cells}</div>
+ <div class="rowc">${r.cols.map((c,j)=>`<button data-rm="${r.id}" data-col="${j}" data-act="addp">+ Piste${side(j)}</button>`).join("")}</div></div>`}
+function roomChange(t){const d=t.dataset,r=S.rooms.find(x=>x.id===d.rm);if(!r)return;
+ if(d.f==="name")r.name=t.value;
+ else if(d.f==="layout"){const n=+t.value;if(n===1&&r.cols.length>1)r.cols=[[...r.cols[0],...r.cols[1]]];else if(n===2&&r.cols.length<2)r.cols=[r.cols[0],[]]}
+ else if(d.f==="vis"){const p=+d.pi,i=r.hide.indexOf(p);if(t.checked&&i>=0)r.hide.splice(i,1);else if(!t.checked&&i<0)r.hide.push(p)}
+ save();render();cfg()}
+function roomClick(t){const d=t.dataset;
+ if(d.act==="delroom"){const r=S.rooms.find(x=>x.id===d.rm);if(r&&confirm("Supprimer la salle « "+r.name+" » et ses pistes ? Les arbitres placés seront libérés.")){r.cols.flat().forEach(p=>delete S.labels[p]);S.rooms=S.rooms.filter(x=>x!==r);save();render();cfg()}return}
+ const r=S.rooms.find(x=>x.id===d.rm);if(!r)return;const c=r.cols[+d.col];if(!c)return;
+ if(d.act==="addp"){c.push(nextPiste())}
+ else{const p=+d.pi,i=c.indexOf(p);if(i<0)return;
+  if(d.act==="up"&&i>0)[c[i-1],c[i]]=[c[i],c[i-1]];
+  else if(d.act==="down"&&i<c.length-1)[c[i+1],c[i]]=[c[i],c[i+1]];
+  else if(d.act==="delp"){if(!confirm("Supprimer la piste "+(S.labels[p]||pad(p))+" ? L’arbitre placé sera libéré."))return;c.splice(i,1);r.hide=r.hide.filter(x=>x!==p);delete S.labels[p]}
+  else return}
+ save();render();cfg()}
+function addDay(){const last=S.days.map(i=>S.dates[i]).filter(Boolean).sort().pop();let dt;
+ if(last){const x=new Date(last+"T12:00:00");x.setDate(x.getDate()+1);dt=iso(x)}else dt=iso(new Date());
+ const id="d"+Date.now();S.days.push(id);S.dates[id]=dt;
+ S.cats[id]=[];S.refs[id]=[];S.assign[id]={};S.prog[id]={};S.off[id]=["t256","t128"];
+ const nm=(wd(id)||"jour").toLowerCase();
+ S.cats[id]=Array.from({length:8},(_,i)=>({id:id+"_"+(i+1),name:nm+(i+1),weapon:"epee"}));
+ for(const d of S.days)if(d!==id)for(const r of S.refs[d])if(r.both&&!S.refs[id].some(x=>x.id===r.id))S.refs[id].push({id:r.id,name:r.name,lv:{...r.lv},both:true});
+ day=id;save();render();cfg()}
+function delDay(id){if(S.days.length<2){alert("Il faut garder au moins un jour.");return}
+ if(!confirm("Supprimer « "+dayName(id)+" » et toutes ses données (catégories, arbitres, affectations, avancement) ?"))return;
+ S.days=S.days.filter(d=>d!==id);for(const k of["cats","refs","assign","prog","off","dates"])delete S[k][id];
+ if(day===id)day=S.days[0];save();render();cfg()}
+function cfg(){$("#cfgDay").textContent=dayName(day);
  document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===tab));
  const B=$("#cfgBody"),wo=s=>Object.keys(W).map(w=>`<option value="${w}"${w===s?" selected":""}>${W[w]}</option>`).join("");
  if(tab==="cat")B.innerHTML=S.cats[day].map(c=>`<div class="rowc"><input type="text" value="${esc(c.name)}" data-c="${c.id}" data-f="name"><select data-c="${c.id}" data-f="weapon">${wo(c.weapon)}</select><button data-delcat="${c.id}">Supprimer</button></div>`).join("")+'<div class="rowc"><button id="addCat">Ajouter une catégorie</button></div>';
- if(tab==="rnd")B.innerHTML='<p style="color:var(--mut)">Colonnes affichées le '+DN[day].toLowerCase()+' (décocher masque la colonne, les heures saisies sont conservées).</p>'+R.slice(1).map(r=>`<div class="rowc"><label class="lv"><input type="checkbox" data-rnd="${r[0]}"${(S.off[day]||[]).includes(r[0])?"":" checked"}> ${r[1]}</label></div>`).join("");
- if(tab==="dat")B.innerHTML='<p style="color:var(--mut)">Date de chaque journée de compétition : les chronos et le bloc « Compétitions à lancer » n’affichent rien avant cette date.</p><div class="rowc"><label class="lv">Samedi <input type="date" data-date="sat" value="'+(S.dates.sat||"")+'"></label><label class="lv">Dimanche <input type="date" data-date="sun" value="'+(S.dates.sun||"")+'"></label></div>';
+ if(tab==="rnd")B.innerHTML='<p style="color:var(--mut)">Colonnes affichées le '+dayName(day).toLowerCase()+' (décocher masque la colonne, les heures saisies sont conservées).</p>'+R.slice(1).map(r=>`<div class="rowc"><label class="lv"><input type="checkbox" data-rnd="${r[0]}"${(S.off[day]||[]).includes(r[0])?"":" checked"}> ${r[1]}</label></div>`).join("");
+ if(tab==="dat")B.innerHTML='<p style="color:var(--mut)">Date de chaque journée de compétition : le nom de l’onglet (samedi, dimanche…) se met à jour automatiquement selon la date choisie. Les chronos et le bloc « Compétitions à lancer » n’affichent rien avant cette date.</p>'+S.days.map(d=>`<div class="rowc"><label class="lv"><b style="min-width:100px;color:var(--gold2)">${esc(dayName(d))}</b><input type="date" data-date="${d}" value="${S.dates[d]||""}"></label><button data-delday="${d}">Supprimer ce jour</button></div>`).join("")+'<div class="rowc"><button id="addDay">Ajouter un jour</button></div>';
+ if(tab==="room")B.innerHTML='<p style="color:var(--mut)">Salles et pistes (communes à tous les jours). Une salle sur 1 colonne s’affiche à gauche, une salle sur 2 colonnes à droite. Décocher « visible » masque la piste en laissant un emplacement vide dans la disposition ; l’arbitre qui y était placé est libéré.</p>'+S.rooms.map(roomCfg).join("")+'<div class="rowc"><button id="addRoom">Ajouter une salle</button><select id="newL"><option value="2">2 colonnes (comme Salle 1)</option><option value="1">1 colonne (comme Salle 2)</option></select><label class="lv">Pistes <input type="number" id="newN" value="6" min="1" max="60" style="width:70px"></label></div>';
  if(tab==="col")B.innerHTML=Object.keys(W).map(w=>`<div class="rowc"><input type="color" value="${S.colors[w]}" data-w="${w}"> ${W[w]}</div>`).join("");
  if(tab==="ref")B.innerHTML=S.refs[day].map(r=>`<div class="rowc" style="border-bottom:1px solid var(--line);padding-bottom:8px"><input type="text" value="${esc(r.name)}" data-r="${r.id}" data-f="name"><button data-del="${r.id}">Supprimer</button><label class="lv"><input type="checkbox" data-r="${r.id}" data-both="1"${r.both?" checked":""}> 2 jours</label><label class="lv"><input type="checkbox" data-r="${r.id}" data-abs="1"${r.absent?" checked":""}> Absent</label>
   ${Object.keys(W).map(w=>`<label class="lv">${AB[w]}<select data-r="${r.id}" data-w="${w}"><option value="">—</option>${LV.map(l=>`<option${r.lv[w]===l?" selected":""}>${l}</option>`).join("")}</select></label>`).join("")}</div>`).join("")+'<div class="rowc"><button id="addRef">Ajouter un arbitre</button><label class="lv"><input type="checkbox" id="both"> Présent les deux jours</label></div>';
 }
 $("#cfgBody").addEventListener("change",e=>{const t=e.target,d=t.dataset;
+ if(d.rm){roomChange(t);return}
  if(d.c)S.cats[day].find(c=>c.id===d.c)[d.f]=t.value;
  else if(d.r){const r=S.refs[day].find(x=>x.id===d.r);
-  if(d.both){r.both=t.checked;const o=S.refs[other()].find(x=>x.id===r.id);if(r.both)sync(r);else if(o)o.both=false}
+  if(d.both){r.both=t.checked;if(r.both)sync(r);else others().forEach(k=>{const o=S.refs[k].find(x=>x.id===r.id);if(o)o.both=false})}
   else if(d.abs)r.absent=t.checked;
   else{if(d.f)r.name=t.value;else if(t.value)r.lv[d.w]=t.value;else delete r.lv[d.w];sync(r)}}
  else if(d.rnd){const o=S.off[day],i=o.indexOf(d.rnd);if(t.checked&&i>=0)o.splice(i,1);else if(!t.checked&&i<0)o.push(d.rnd)}
  else if(d.date)S.dates[d.date]=t.value;
  else if(d.w)S.colors[d.w]=t.value;
- save();render()});
+ save();render();if(d.date)cfg()});
 $("#cfgBody").addEventListener("click",e=>{const t=e.target;
+ if(t.dataset.act){roomClick(t);return}
+ if(t.id==="addDay"){addDay();return}
+ if(t.dataset.delday){delDay(t.dataset.delday);return}
+ if(t.id==="addRoom"){const n=Math.max(1,Math.min(60,+$("#newN").value||1)),L=+$("#newL").value,p0=nextPiste(),ids=Array.from({length:n},(_,i)=>p0+i),h=Math.ceil(n/2);
+  S.rooms.push({id:"room"+Date.now(),name:"Salle "+(S.rooms.length+1),cols:L===2?[ids.slice(0,h),ids.slice(h)]:[ids],hide:[]});save();render();cfg();return}
  if(t.id==="addCat"){S.cats[day].push({id:day+"_"+Date.now(),name:"Nouvelle catégorie",weapon:"epee"});save();render();cfg()}
  if(t.dataset.delcat&&confirm("Supprimer cette catégorie ?")){S.cats[day]=S.cats[day].filter(c=>c.id!==t.dataset.delcat);save();render();cfg()}
  if(t.id==="addRef"){const r={id:"r"+Date.now(),name:"Nouvel arbitre",lv:{},both:$("#both").checked};S.refs[day].push(r);sync(r);save();render();cfg()}
  if(t.dataset.del){const r=S.refs[day].find(x=>x.id===t.dataset.del);
-  if(confirm(r.both?"Supprimer cet arbitre des deux jours ?":"Supprimer cet arbitre ?")){(r.both?["sat","sun"]:[day]).forEach(k=>S.refs[k]=S.refs[k].filter(x=>x.id!==r.id));save();render();cfg()}}});
+  if(confirm(r.both?"Supprimer cet arbitre des deux jours ?":"Supprimer cet arbitre ?")){(r.both?S.days:[day]).forEach(k=>S.refs[k]=S.refs[k].filter(x=>x.id!==r.id));save();render();cfg()}}});
 const R=[["p1","Tour de poule"],["p2","2e tour de poule"],["t256","T256"],["t128","T128"],["t64","T64"],["t32","T32"],["t16","T16"],["qf","Quarts de finale"],["sf","Demi-finales"],["fin","Finale / petite finale"]];
 const rounds=()=>R.filter(r=>r[0]==="p1"||!(S.off[day]||[]).includes(r[0]));
 let view="plan";
@@ -240,7 +308,7 @@ function renderRecap(){
    N=`<div class="rl${x.s?" run":""}"><span>Suivant : <b>${RR[nx][1]}</b></span><label>Début ${tin(c.id,r,"s",x.s)}</label><label>Fin ${tin(c.id,r,"e",x.e)}</label>${nx?`<label>Non concerné <input type="checkbox" data-pc="${c.id}" data-pr="${r}" data-pf="nc"></label>`:""}</div>`}
   return`<div class="rc" style="--c:${S.colors[w]}"><div class="rm"><h4>${esc(c.name)}</h4>${L}${N}</div><div class="rp"><span>Pistes</span>${pl}${Object.values(S.assign[day]).some(a=>a.cat===c.id)?`<button class="clr" data-clr="${c.id}">Vider les pistes</button>`:""}</div></div>`})).join("")}
 function renderProg(){const RR=rounds();
- $("#progBody").innerHTML=`<h2>Tableau d’avancement — ${DN[day]}</h2>`+Object.keys(W).map(w=>{const cs=S.cats[day].filter(c=>c.weapon===w);if(!cs.length)return"";
+ $("#progBody").innerHTML=`<h2>Tableau d’avancement — ${dayName(day)}</h2>`+Object.keys(W).map(w=>{const cs=S.cats[day].filter(c=>c.weapon===w);if(!cs.length)return"";
   return`<h3 style="color:${S.colors[w]}">${W[w]}</h3><div class="sc"><table class="pt" style="--c:${S.colors[w]}"><thead><tr><th>Catégorie</th>${RR.map(r=>`<th>${r[1]}</th>`).join("")}</tr></thead><tbody>${cs.map(c=>{const P=S.prog[day][c.id]||{},I=P.info||{};
    return`<tr><th class="cn">${esc(c.name)}${[["appel","Appel"],["scratch","Scratch"],["debut","Début"]].map(([f,l])=>`<label>${l} ${tin(c.id,"info",f,I[f])}</label>`).join("")}</th>${RR.map((r,i)=>{const x=P[r[0]]||{},a=`data-pc="${c.id}" data-pr="${r[0]}"`;
     const nc=i?`<label>Non concerné <input type="checkbox" ${a} data-pf="nc"${x.nc?" checked":""}></label>`:"";
@@ -255,8 +323,8 @@ $("#exp").onclick=()=>{const a=document.createElement("a");a.href=URL.createObje
 $("#imp").onclick=()=>$("#impf").click();
 $("#impf").onchange=async e=>{const f=e.target.files[0];if(!f)return;
  try{const o=JSON.parse(await f.text());if(!o.cats||!o.refs)throw 0;
-  if(confirm("Remplacer toutes les données actuelles par cette sauvegarde ?")){S=Object.assign(S,o);save();render()}}catch{alert("Fichier de sauvegarde invalide")}e.target.value=""};
-showView();
+  if(confirm("Remplacer toutes les données actuelles par cette sauvegarde ?")){if(!o.days)o.days=["sat","sun"];if(!o.rooms)o.rooms=defRooms();S=Object.assign(S,o);save();render()}}catch{alert("Fichier de sauvegarde invalide")}e.target.value=""};
+renderDays();showView();
 const THEMES=[["sco","SCO"],["sombre","Sombre"],["clair","Clair"],["ivoire","Ivoire"],["atlantique","Atlantique"],["bordeaux","Bordeaux"]];
 function setTheme(t){document.documentElement.dataset.theme=t;try{localStorage.setItem("theme",t)}catch{}
  document.querySelectorAll(".th button").forEach(b=>b.classList.toggle("on",b.dataset.th===t))}
@@ -287,7 +355,7 @@ async function load(){const{data,error}=await sb.from("app_state").select("value
 sb.auth.onAuthStateChange((ev,session)=>{
  $("#loginOv").classList.toggle("show",!session);
  if(session&&!loaded)setTimeout(load,0);
- if(!session){loaded=false;$("#legend").innerHTML="";$("#dispo").innerHTML="";for(const k in ROOMS)$("#"+k).innerHTML=""}});
+ if(!session){loaded=false;$("#legend").innerHTML="";$("#dispo").innerHTML="";$("#roomsL").innerHTML=$("#roomsR").innerHTML=""}});
 </script>
 </body>
 </html>
