@@ -35,7 +35,7 @@ header h1{font-size:28px;letter-spacing:.04em}
 .rl{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;margin:4px 0;font-size:13px}.rl>span{flex-basis:100%}
 .rl label{display:flex;gap:6px;align-items:center;color:var(--mut)}.rl.run{border-left:2px dashed var(--gold);padding-left:6px}
 input[type=time]{width:112px}
-input[type=time]::-webkit-calendar-picker-indicator{background:var(--gold);border-radius:3px;padding:3px;cursor:pointer;opacity:1}
+input[type=time]::-webkit-calendar-picker-indicator,input[type=date]::-webkit-calendar-picker-indicator{background:var(--gold);border-radius:3px;padding:3px;cursor:pointer;opacity:1}
 .sp{flex:1}
 .menu{position:relative}.mlist{display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:8;background:var(--panel);border:1px solid var(--gold);border-radius:6px;padding:6px;flex-direction:column;gap:6px;min-width:150px}.mlist.show{display:flex}
 #burger{font-size:18px;line-height:1;padding:6px 12px}
@@ -117,7 +117,7 @@ input[type=color]{padding:0;width:44px;height:32px}
 
 <div class="ov" id="cfgOv"><div class="box">
 <h2>Configuration — <span id="cfgDay"></span></h2>
-<div class="tabs"><button data-t="cat">Catégories</button><button data-t="ref">Arbitres</button><button data-t="col">Couleurs</button><button data-t="rnd">Colonnes</button></div>
+<div class="tabs"><button data-t="cat">Catégories</button><button data-t="ref">Arbitres</button><button data-t="col">Couleurs</button><button data-t="rnd">Colonnes</button><button data-t="dat">Dates</button></div>
 <div id="cfgBody"></div><div class="rowc"><span class="sp"></span><button id="cfgClose">Fermer</button></div>
 </div></div>
 
@@ -135,7 +135,7 @@ const other=()=>day==="sat"?"sun":"sat";
 function sync(r){if(!r.both)return;let o=S.refs[other()].find(x=>x.id===r.id);if(!o){o={id:r.id};S.refs[other()].push(o)}o.name=r.name;o.lv={...r.lv};o.both=true}
 const pad=n=>String(n).padStart(2,"0");
 const cats=p=>Array.from({length:8},(_,i)=>({id:p+(i+1),name:(p==="sat"?"samedi":"dimanche")+(i+1),weapon:"epee"}));
-let S={labels:{},colors:{epee:"#c0392b",fleuret:"#2f6fdc",sabre:"#2e9e5b"},cats:{sat:cats("sat"),sun:cats("sun")},refs:{sat:[],sun:[]},assign:{sat:{},sun:{}},prog:{sat:{},sun:{}},off:{sat:["t256","t128"],sun:["t256","t128"]}};
+let S={labels:{},colors:{epee:"#c0392b",fleuret:"#2f6fdc",sabre:"#2e9e5b"},cats:{sat:cats("sat"),sun:cats("sun")},refs:{sat:[],sun:[]},assign:{sat:{},sun:{}},prog:{sat:{},sun:{}},dates:{sat:"2026-11-21",sun:"2026-11-22"},off:{sat:["t256","t128"],sun:["t256","t128"]}};
 let day="sat",tab="cat",timer,loaded=false;
 
 function clean(){for(const d of["sat","sun"]){const A=S.assign[d],seen={};
@@ -181,6 +181,7 @@ function cfg(){$("#cfgDay").textContent=DN[day];
  const B=$("#cfgBody"),wo=s=>Object.keys(W).map(w=>`<option value="${w}"${w===s?" selected":""}>${W[w]}</option>`).join("");
  if(tab==="cat")B.innerHTML=S.cats[day].map(c=>`<div class="rowc"><input type="text" value="${esc(c.name)}" data-c="${c.id}" data-f="name"><select data-c="${c.id}" data-f="weapon">${wo(c.weapon)}</select><button data-delcat="${c.id}">Supprimer</button></div>`).join("")+'<div class="rowc"><button id="addCat">Ajouter une catégorie</button></div>';
  if(tab==="rnd")B.innerHTML='<p style="color:var(--mut)">Colonnes affichées le '+DN[day].toLowerCase()+' (décocher masque la colonne, les heures saisies sont conservées).</p>'+R.slice(1).map(r=>`<div class="rowc"><label class="lv"><input type="checkbox" data-rnd="${r[0]}"${(S.off[day]||[]).includes(r[0])?"":" checked"}> ${r[1]}</label></div>`).join("");
+ if(tab==="dat")B.innerHTML='<p style="color:var(--mut)">Date de chaque journée de compétition : les chronos et le bloc « Compétitions à lancer » n’affichent rien avant cette date.</p><div class="rowc"><label class="lv">Samedi <input type="date" data-date="sat" value="'+(S.dates.sat||"")+'"></label><label class="lv">Dimanche <input type="date" data-date="sun" value="'+(S.dates.sun||"")+'"></label></div>';
  if(tab==="col")B.innerHTML=Object.keys(W).map(w=>`<div class="rowc"><input type="color" value="${S.colors[w]}" data-w="${w}"> ${W[w]}</div>`).join("");
  if(tab==="ref")B.innerHTML=S.refs[day].map(r=>`<div class="rowc" style="border-bottom:1px solid var(--line);padding-bottom:8px"><input type="text" value="${esc(r.name)}" data-r="${r.id}" data-f="name"><button data-del="${r.id}">Supprimer</button><label class="lv"><input type="checkbox" data-r="${r.id}" data-both="1"${r.both?" checked":""}> 2 jours</label><label class="lv"><input type="checkbox" data-r="${r.id}" data-abs="1"${r.absent?" checked":""}> Absent</label>
   ${Object.keys(W).map(w=>`<label class="lv">${AB[w]}<select data-r="${r.id}" data-w="${w}"><option value="">—</option>${LV.map(l=>`<option${r.lv[w]===l?" selected":""}>${l}</option>`).join("")}</select></label>`).join("")}</div>`).join("")+'<div class="rowc"><button id="addRef">Ajouter un arbitre</button><label class="lv"><input type="checkbox" id="both"> Présent les deux jours</label></div>';
@@ -192,6 +193,7 @@ $("#cfgBody").addEventListener("change",e=>{const t=e.target,d=t.dataset;
   else if(d.abs)r.absent=t.checked;
   else{if(d.f)r.name=t.value;else if(t.value)r.lv[d.w]=t.value;else delete r.lv[d.w];sync(r)}}
  else if(d.rnd){const o=S.off[day],i=o.indexOf(d.rnd);if(t.checked&&i>=0)o.splice(i,1);else if(!t.checked&&i<0)o.push(d.rnd)}
+ else if(d.date)S.dates[d.date]=t.value;
  else if(d.w)S.colors[d.w]=t.value;
  save();render()});
 $("#cfgBody").addEventListener("click",e=>{const t=e.target;
@@ -215,14 +217,15 @@ const tin=(c,r,f,v)=>`<input type="time" data-pc="${c}" data-pr="${r}" data-pf="
 const hm=t=>{const a=t.split(":");return+a[0]*60+ +a[1]};
 const nowSec=()=>{const d=new Date();return d.getHours()*3600+d.getMinutes()*60+d.getSeconds()};
 const fmt=x=>{x=Math.max(0,x);const h=Math.floor(x/3600),m=Math.floor(x%3600/60),q=x%60,p=n=>String(n).padStart(2,"0");return h?h+":"+p(m)+":"+p(q):p(m)+":"+p(q)};
-const since=t=>fmt(nowSec()-hm(t)*60);
+const ts=t=>{const d=S.dates&&S.dates[day];if(d)return new Date(d+"T"+t+":00").getTime();const x=new Date(),a=t.split(":");x.setHours(+a[0],+a[1],0,0);return x.getTime()};
+const since=t=>fmt(Math.floor((Date.now()-ts(t))/1000));
 function tick(){document.querySelectorAll("[data-since]").forEach(el=>el.textContent=since(el.dataset.since))}
 function renderLaunch(){const wait=[],start=[];
  for(const w of Object.keys(W))for(const c of S.cats[day].filter(c=>c.weapon===w)){
   const{P,RR,last,nx}=st(c),col=S.colors[w];
   if(last>=0&&nx>=0&&!(P[RR[nx][0]]||{}).s)wait.push({c,col,e:P[RR[last][0]].e,r:RR[last][1]});
-  else if(!(P.p1&&P.p1.s)&&(P.info||{}).debut){const u=hm(P.info.debut)*60-nowSec();if(u<=5400)start.push({c,col,t:P.info.debut,u})}}
- start.sort((a,b)=>hm(a.t)-hm(b.t));
+  else if(!(P.p1&&P.p1.s)&&(P.info||{}).debut){const u=Math.round((ts(P.info.debut)-Date.now())/1000);if(u<=5400)start.push({c,col,t:P.info.debut,u})}}
+ start.sort((a,b)=>hm(a.t)-hm(b.t));wait.sort((a,b)=>hm(a.e)-hm(b.e));
  const rs=start.map(x=>`<div class="lc" style="--c:${x.col}"><b>${esc(x.c.name)}</b><span>${x.t} · ${x.u>=0?"dans "+Math.ceil(x.u/60)+" min":"retard de "+Math.floor(-x.u/60)+" min"}</span></div>`).join("");
  const rw=wait.map(x=>`<div class="lc" style="--c:${x.col}"><b>${esc(x.c.name)}</b><span>${x.r} fini à ${x.e}<b class="chr" data-since="${x.e}">${since(x.e)}</b></span></div>`).join("");
  $("#tlBody").innerHTML=(rs?"<h5>À démarrer</h5>"+rs:"")+(rw?"<h5>Tour suivant à lancer</h5>"+rw:"")||'<span style="color:var(--mut)">Rien à lancer pour le moment</span>'}
