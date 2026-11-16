@@ -45,7 +45,7 @@ input[type=time]::-webkit-calendar-picker-indicator,input[type=date]::-webkit-ca
 .rp span{flex-basis:100%;text-align:right;font-size:11px;color:var(--mut)}.rp em{color:var(--mut)}
 .rp b{border:1px solid var(--c);border-radius:3px;padding:1px 6px;font:600 13px Jost,sans-serif;color:var(--gold2)}
 .legend{display:flex;gap:14px;color:var(--mut)}.legend i{display:inline-block;width:10px;height:10px;margin-right:5px;border-radius:2px}
-main{display:grid;grid-template-columns:400px minmax(260px,1fr) 680px;gap:18px;padding:18px 20px;align-items:start}
+main{display:grid;grid-template-columns:400px minmax(420px,1.7fr) minmax(240px,1fr);gap:18px;padding:18px 20px;align-items:start}
 .col{display:flex;flex-direction:column;gap:18px}
 .room{border:1px solid var(--gold);background:var(--panel);padding:12px;border-radius:6px}
 .room h3{font-size:16px;margin-bottom:10px;color:var(--gold)}
@@ -110,10 +110,10 @@ input[type=color]{padding:0;width:44px;height:32px}
 </header>
 <section class="dispo"><h2>Arbitres disponibles</h2><div class="dg" id="dispo"></div></section>
 <main>
+<div class="col"><div class="room"><h3>Compétitions à lancer</h3><div id="tlBody"></div></div>
+<div class="avance"><h3>Avancement des compétitions</h3><div id="recap"></div></div></div>
+<div class="col" id="roomsR"></div>
 <div class="col" id="roomsL"></div>
-<div class="avance"><h3>Avancement des compétitions</h3><div id="recap"></div></div>
-<div class="col"><div id="roomsR" style="display:contents"></div>
-<div class="room"><h3>Compétitions à lancer</h3><div id="tlBody"></div></div></div>
 </main>
 
 <section class="progw" id="prog"><div id="progBody"></div></section>
@@ -207,7 +207,7 @@ function roomCfg(r){const n=r.cols.length,rows=Math.max(0,...r.cols.map(c=>c.len
   const h=r.hide.includes(id),a=`data-rm="${r.id}" data-pi="${id}" data-col="${j}"`;
   cells+=`<div class="cp${h?" off":""}"><b>${esc(S.labels[id]||pad(id))}</b><label class="lv"><input type="checkbox" ${a} data-f="vis"${h?"":" checked"}> visible</label><span class="sp"></span><button ${a} data-act="up" title="Monter">↑</button><button ${a} data-act="down" title="Descendre">↓</button><button ${a} data-act="delp" title="Supprimer la piste">✕</button></div>`}
  const side=j=>n>1?(j?" (colonne droite)":" (colonne gauche)"):"";
- return`<div class="room" style="margin:10px 0"><div class="rowc"><input type="text" value="${esc(r.name)}" data-rm="${r.id}" data-f="name"><select data-rm="${r.id}" data-f="layout"><option value="1"${n===1?" selected":""}>1 colonne (comme Salle 2)</option><option value="2"${n===2?" selected":""}>2 colonnes (comme Salle 1)</option></select><button data-rm="${r.id}" data-act="delroom">Supprimer la salle</button></div>
+ return`<div class="room" style="margin:10px 0"><div class="rowc"><input type="text" value="${esc(r.name)}" data-rm="${r.id}" data-f="name"><select data-rm="${r.id}" data-f="layout"><option value="1"${n===1?" selected":""}>1 colonne</option><option value="2"${n===2?" selected":""}>2 colonnes</option></select><button data-rm="${r.id}" data-act="delroom">Supprimer la salle</button></div>
  <div class="rg" style="grid-template-columns:repeat(${n},1fr)">${cells}</div>
  <div class="rowc">${r.cols.map((c,j)=>`<button data-rm="${r.id}" data-col="${j}" data-act="addp">+ Piste${side(j)}</button>`).join("")}</div></div>`}
 function roomChange(t){const d=t.dataset,r=S.rooms.find(x=>x.id===d.rm);if(!r)return;
@@ -243,7 +243,7 @@ function cfg(){$("#cfgDay").textContent=dayName(day);
  if(tab==="cat")B.innerHTML=S.cats[day].map(c=>`<div class="rowc"><input type="text" value="${esc(c.name)}" data-c="${c.id}" data-f="name"><select data-c="${c.id}" data-f="weapon">${wo(c.weapon)}</select><button data-delcat="${c.id}">Supprimer</button></div>`).join("")+'<div class="rowc"><button id="addCat">Ajouter une catégorie</button></div>';
  if(tab==="rnd")B.innerHTML='<p style="color:var(--mut)">Colonnes affichées le '+dayName(day).toLowerCase()+' (décocher masque la colonne, les heures saisies sont conservées).</p>'+R.slice(1).map(r=>`<div class="rowc"><label class="lv"><input type="checkbox" data-rnd="${r[0]}"${(S.off[day]||[]).includes(r[0])?"":" checked"}> ${r[1]}</label></div>`).join("");
  if(tab==="dat")B.innerHTML='<p style="color:var(--mut)">Date de chaque journée de compétition : le nom de l’onglet (samedi, dimanche…) se met à jour automatiquement selon la date choisie. Les chronos et le bloc « Compétitions à lancer » n’affichent rien avant cette date.</p>'+S.days.map(d=>`<div class="rowc"><label class="lv"><b style="min-width:100px;color:var(--gold2)">${esc(dayName(d))}</b><input type="date" data-date="${d}" value="${S.dates[d]||""}"></label><button data-delday="${d}">Supprimer ce jour</button></div>`).join("")+'<div class="rowc"><button id="addDay">Ajouter un jour</button></div>';
- if(tab==="room")B.innerHTML='<p style="color:var(--mut)">Salles et pistes (communes à tous les jours). Une salle sur 1 colonne s’affiche à gauche, une salle sur 2 colonnes à droite. Décocher « visible » masque la piste en laissant un emplacement vide dans la disposition ; l’arbitre qui y était placé est libéré.</p>'+S.rooms.map(roomCfg).join("")+'<div class="rowc"><button id="addRoom">Ajouter une salle</button><select id="newL"><option value="2">2 colonnes (comme Salle 1)</option><option value="1">1 colonne (comme Salle 2)</option></select><label class="lv">Pistes <input type="number" id="newN" value="6" min="1" max="60" style="width:70px"></label></div>';
+ if(tab==="room")B.innerHTML='<p style="color:var(--mut)">Salles et pistes (communes à tous les jours). Une salle sur 2 colonnes s’affiche au milieu, une salle sur 1 colonne à droite. Décocher « visible » masque la piste en laissant un emplacement vide dans la disposition ; l’arbitre qui y était placé est libéré.</p>'+S.rooms.map(roomCfg).join("")+'<div class="rowc"><button id="addRoom">Ajouter une salle</button><select id="newL"><option value="2">2 colonnes</option><option value="1">1 colonne</option></select><label class="lv">Pistes <input type="number" id="newN" value="6" min="1" max="60" style="width:70px"></label></div>';
  if(tab==="col")B.innerHTML=Object.keys(W).map(w=>`<div class="rowc"><input type="color" value="${S.colors[w]}" data-w="${w}"> ${W[w]}</div>`).join("");
  if(tab==="ref")B.innerHTML=S.refs[day].map(r=>`<div class="rowc" style="border-bottom:1px solid var(--line);padding-bottom:8px"><input type="text" value="${esc(r.name)}" data-r="${r.id}" data-f="name"><button data-del="${r.id}">Supprimer</button><label class="lv"><input type="checkbox" data-r="${r.id}" data-both="1"${r.both?" checked":""}> 2 jours</label><label class="lv"><input type="checkbox" data-r="${r.id}" data-abs="1"${r.absent?" checked":""}> Absent</label>
   ${Object.keys(W).map(w=>`<label class="lv">${AB[w]}<select data-r="${r.id}" data-w="${w}"><option value="">—</option>${LV.map(l=>`<option${r.lv[w]===l?" selected":""}>${l}</option>`).join("")}</select></label>`).join("")}</div>`).join("")+'<div class="rowc"><button id="addRef">Ajouter un arbitre</button><label class="lv"><input type="checkbox" id="both"> Présent les deux jours</label></div>';
