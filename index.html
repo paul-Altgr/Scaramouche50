@@ -16,8 +16,23 @@ button{cursor:pointer;color:var(--gold2)}button:hover{border-color:var(--gold)}
 :focus-visible{outline:2px solid var(--gold);outline-offset:1px}
 header{display:flex;align-items:center;gap:16px;padding:14px 20px;border-bottom:1px solid var(--gold);flex-wrap:wrap}
 header h1{font-size:28px;letter-spacing:.04em}
-.days{display:flex;gap:0}.days button{border-radius:0;padding:8px 20px}
-.days button.on{background:var(--gold);color:#000;border-color:var(--gold)}
+.days,.views{display:flex}.days button,.views button{border-radius:0;padding:8px 20px}
+.days button.on,.views button.on{background:var(--gold);color:#000;border-color:var(--gold)}
+.progw{padding:18px 20px;display:none}.progw h3{font-size:24px;margin:20px 0 6px}
+.sc{overflow-x:auto}.pt{border-collapse:separate;border-spacing:4px;min-width:100%}
+.pt th{font:500 13px Jost,sans-serif;color:var(--gold2);text-align:left;padding:6px 8px;white-space:nowrap}
+.pt thead th{border-bottom:2px solid var(--c)}
+.pt .cn{position:sticky;left:0;background:var(--bg);min-width:120px;border-left:4px solid var(--c);font-size:15px}
+.pt td{vertical-align:top;min-width:140px;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:#000}
+.pt td label{display:flex;justify-content:space-between;gap:6px;align-items:center;font-size:12px;color:var(--mut);margin:3px 0}
+.pt td input[type=time]{padding:3px 4px;width:90px}
+.pt td.run{border:1px dashed var(--gold)}
+.pt td.done{background:color-mix(in srgb,var(--c) 40%,#000);border-color:var(--c)}
+.pt td.done::after{content:"✓ Terminé";display:block;color:var(--gold2);font-size:12px;margin-top:2px}
+.pt td.nc{opacity:.45;background:repeating-linear-gradient(45deg,#000,#000 6px,#161616 6px,#161616 12px)}
+.rc{width:100%;border-collapse:separate;border-spacing:0 6px}.rc th{text-align:left;padding:4px 8px;color:var(--mut);font-weight:400}
+.rc td{padding:8px;background:color-mix(in srgb,var(--c) 24%,#000)}.rc td:first-child{border-left:4px solid var(--c);font-weight:500}
+.rc small{color:var(--mut);margin-left:4px}.rc small.run{color:var(--gold2)}
 .sp{flex:1}
 .legend{display:flex;gap:14px;color:var(--mut)}.legend i{display:inline-block;width:10px;height:10px;margin-right:5px;border-radius:2px}
 main{display:grid;grid-template-columns:400px minmax(260px,1fr) 680px;gap:18px;padding:18px 20px;align-items:start}
@@ -61,15 +76,18 @@ input[type=color]{padding:0;width:44px;height:32px}
 <header>
 <h1>Pistes d’escrime</h1>
 <div class="days"><button data-d="sat">Samedi</button><button data-d="sun">Dimanche</button></div>
-<div class="legend" id="legend"></div><span class="sp"></span><span id="st"></span>
-<button id="cfgBtn">Configuration</button><button id="out">Déconnexion</button>
+<div class="legend" id="legend"></div><div class="views"><button data-v="plan">Plan</button><button data-v="prog">Tableau d’avancement</button></div><span class="sp"></span><span id="st"></span>
+<button id="exp">Exporter</button><button id="imp">Importer</button><input type="file" id="impf" accept=".json" hidden>
+<button id="exp">Exporter</button><button id="cfgBtn">Configuration</button><button id="out">Déconnexion</button>
 </header>
 <section class="dispo"><h2>Arbitres disponibles</h2><div class="dg" id="dispo"></div></section>
 <main>
 <div class="room"><h3>Salle 2</h3><div class="rows" id="r2"></div></div>
-<div class="avance"><h3>Avancement des compétitions</h3></div>
+<div class="avance"><h3>Avancement des compétitions</h3><div id="recap"></div></div>
 <div class="room"><h3>Salle 1</h3><div class="two"><div class="rows" id="r3"></div><div class="rows" id="r4"></div></div></div>
 </main>
+
+<section class="progw" id="prog"><div id="progBody"></div></section>
 
 <div class="ov" id="cfgOv"><div class="box">
 <h2>Configuration — <span id="cfgDay"></span></h2>
@@ -91,7 +109,7 @@ const other=()=>day==="sat"?"sun":"sat";
 function sync(r){if(!r.both)return;let o=S.refs[other()].find(x=>x.id===r.id);if(!o){o={id:r.id};S.refs[other()].push(o)}o.name=r.name;o.lv={...r.lv};o.both=true}
 const pad=n=>String(n).padStart(2,"0");
 const cats=p=>Array.from({length:8},(_,i)=>({id:p+(i+1),name:(p==="sat"?"samedi":"dimanche")+(i+1),weapon:"epee"}));
-let S={labels:{},colors:{epee:"#c0392b",fleuret:"#2f6fdc",sabre:"#2e9e5b"},cats:{sat:cats("sat"),sun:cats("sun")},refs:{sat:[],sun:[]},assign:{sat:{},sun:{}}};
+let S={labels:{},colors:{epee:"#c0392b",fleuret:"#2f6fdc",sabre:"#2e9e5b"},cats:{sat:cats("sat"),sun:cats("sun")},refs:{sat:[],sun:[]},assign:{sat:{},sun:{}},prog:{sat:{},sun:{}}};
 let day="sat",tab="cat",timer,loaded=false;
 
 function clean(){for(const d of["sat","sun"]){const A=S.assign[d],seen={};
@@ -103,6 +121,7 @@ function save(){clean();$("#st").textContent="Enregistrement…";clearTimeout(ti
 const placed=()=>new Set(Object.values(S.assign[day]).map(a=>a.ref).filter(Boolean));
 
 function render(){
+ renderRecap();renderProg();
  document.querySelectorAll(".days button").forEach(b=>b.classList.toggle("on",b.dataset.d===day));
  $("#legend").innerHTML=Object.keys(W).map(w=>`<span><i style="background:${S.colors[w]}"></i>${AB[w]}</span>`).join("");
  const used=placed(),C=S.cats[day];
@@ -121,6 +140,7 @@ document.addEventListener("change",e=>{const t=e.target,p=t.dataset.p;if(!p||!t.
  const A=S.assign[day];A[p]=A[p]||{};A[p][t.dataset.k]=t.value;save();render()});
 document.addEventListener("click",e=>{const t=e.target;
  if(t.classList.contains("num")){const v=prompt("Numéro de la piste :",t.textContent);if(v!==null&&v.trim()){S.labels[t.dataset.p]=v.trim();save();render()}}
+ if(t.dataset.v){view=t.dataset.v;showView()}
  if(t.dataset.d){day=t.dataset.d;render();if($("#cfgOv").classList.contains("show"))cfg()}
  if(t.dataset.t){tab=t.dataset.t;cfg()}});
 
@@ -143,6 +163,40 @@ $("#cfgBody").addEventListener("click",e=>{const t=e.target;
  if(t.id==="addRef"){const r={id:"r"+Date.now(),name:"Nouvel arbitre",lv:{},both:$("#both").checked};S.refs[day].push(r);sync(r);save();render();cfg()}
  if(t.dataset.del){const r=S.refs[day].find(x=>x.id===t.dataset.del);
   if(confirm(r.both?"Supprimer cet arbitre des deux jours ?":"Supprimer cet arbitre ?")){(r.both?["sat","sun"]:[day]).forEach(k=>S.refs[k]=S.refs[k].filter(x=>x.id!==r.id));save();render();cfg()}}});
+$("#exp").onclick=()=>{const d=new Date(),n="sauvegarde-pistes-"+d.toISOString().slice(0,16).replace(/[:T]/g,"-")+".json";
+ const u=URL.createObjectURL(new Blob([JSON.stringify(S,null,2)],{type:"application/json"}));
+ const l=document.createElement("a");l.href=u;l.download=n;l.click();setTimeout(()=>URL.revokeObjectURL(u),1000)};
+const R=[["p1","Tour de poule"],["p2","2e tour de poule"],["t64","T64"],["t32","T32"],["t16","T16"],["qf","Quarts de finale"],["sf","Demi-finales"],["fin","Finale / petite finale"]];
+let view="plan";
+function showView(){document.querySelector("section.dispo").style.display=document.querySelector("main").style.display=view==="plan"?"":"none";
+ $("#prog").style.display=view==="prog"?"block":"none";document.querySelectorAll(".views button").forEach(b=>b.classList.toggle("on",b.dataset.v===view))}
+function st(c){const P=S.prog[day][c.id]||{};let last=-1,nx=-1;
+ R.forEach((r,i)=>{const x=P[r[0]]||{};if(!x.nc&&x.e)last=i});
+ for(let i=last+1;i<R.length;i++)if(!(P[R[i][0]]||{}).nc){nx=i;break}
+ return{P,last,nx}}
+function renderRecap(){
+ const rows=Object.keys(W).flatMap(w=>S.cats[day].filter(c=>c.weapon===w).map(c=>{const{P,last,nx}=st(c);
+  const l=last<0?"—":R[last][1]+`<small>${P[R[last][0]].e}</small>`;
+  const n=nx<0?"Terminé":R[nx][1]+((P[R[nx][0]]||{}).s?`<small class="run">lancé ${P[R[nx][0]].s}</small>`:"");
+  return`<tr style="--c:${S.colors[w]}"><td>${esc(c.name)}</td><td>${l}</td><td>${n}</td></tr>`}));
+ $("#recap").innerHTML=`<table class="rc"><tr><th>Catégorie</th><th>Dernier tour fini</th><th>Tour suivant</th></tr>${rows.join("")}</table>`}
+function renderProg(){
+ $("#progBody").innerHTML=`<h2>Tableau d’avancement — ${DN[day]}</h2>`+Object.keys(W).map(w=>{const cs=S.cats[day].filter(c=>c.weapon===w);if(!cs.length)return"";
+  return`<h3 style="color:${S.colors[w]}">${W[w]}</h3><div class="sc"><table class="pt" style="--c:${S.colors[w]}"><thead><tr><th>Catégorie</th>${R.map(r=>`<th>${r[1]}</th>`).join("")}</tr></thead><tbody>${cs.map(c=>{const P=S.prog[day][c.id]||{};
+   return`<tr><th class="cn">${esc(c.name)}</th>${R.map((r,i)=>{const x=P[r[0]]||{},a=`data-pc="${c.id}" data-pr="${r[0]}"`;
+    const nc=i?`<label>Non concerné <input type="checkbox" ${a} data-pf="nc"${x.nc?" checked":""}></label>`:"";
+    const body=x.nc?"":`<label>Début <input type="time" ${a} data-pf="s" value="${x.s||""}"></label><label>Fin <input type="time" ${a} data-pf="e" value="${x.e||""}"></label>`;
+    return`<td class="${x.nc?"nc":x.e?"done":x.s?"run":""}">${body}${nc}</td>`}).join("")}</tr>`}).join("")}</tbody></table></div>`}).join("")}
+$("#progBody").addEventListener("change",e=>{const t=e.target,d=t.dataset;if(!d.pc)return;
+ const P=S.prog[day];P[d.pc]=P[d.pc]||{};const x=P[d.pc][d.pr]=P[d.pc][d.pr]||{};
+ x[d.pf]=d.pf==="nc"?t.checked:t.value;save();render()});
+$("#exp").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,2)],{type:"application/json"}));
+ a.download="sauvegarde-escrime-"+new Date().toISOString().slice(0,10)+".json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
+$("#imp").onclick=()=>$("#impf").click();
+$("#impf").onchange=async e=>{const f=e.target.files[0];if(!f)return;
+ try{const o=JSON.parse(await f.text());if(!o.cats||!o.refs)throw 0;
+  if(confirm("Remplacer toutes les données actuelles par cette sauvegarde ?")){S=Object.assign(S,o);save();render()}}catch{alert("Fichier de sauvegarde invalide")}e.target.value=""};
+showView();
 $("#cfgBtn").onclick=()=>{$("#cfgOv").classList.add("show");cfg()};
 $("#cfgClose").onclick=()=>$("#cfgOv").classList.remove("show");
 
