@@ -39,7 +39,8 @@ input[type=time]::-webkit-calendar-picker-indicator{background:var(--gold);borde
 .sp{flex:1}
 .menu{position:relative}.mlist{display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:8;background:var(--panel);border:1px solid var(--gold);border-radius:6px;padding:6px;flex-direction:column;gap:6px;min-width:150px}.mlist.show{display:flex}
 #burger{font-size:18px;line-height:1;padding:6px 12px}
-.ts{position:absolute;top:2px;right:8px;font:400 11px Jost,sans-serif;font-style:normal;color:var(--mut)}
+.ts{position:absolute;top:2px;left:8px;font:400 11px Jost,sans-serif;font-style:normal;color:var(--gold)}
+.clr{flex-basis:100%;font-size:12px;padding:3px 8px;margin-top:4px}
 .rm{flex:1;min-width:0}.rp{display:flex;flex-wrap:wrap;gap:4px;align-content:flex-start;justify-content:flex-end;max-width:130px}
 .rp span{flex-basis:100%;text-align:right;font-size:11px;color:var(--mut)}.rp em{color:var(--mut)}
 .rp b{border:1px solid var(--c);border-radius:3px;padding:1px 6px;font:600 13px Jost,sans-serif;color:var(--gold2)}
@@ -149,6 +150,8 @@ document.addEventListener("change",e=>{const t=e.target,p=t.dataset.p;if(!p||!t.
  const A=S.assign[day];A[p]=A[p]||{};A[p][t.dataset.k]=t.value;save();render()});
 document.addEventListener("click",e=>{const t=e.target;
  if(t.classList.contains("num")){const v=prompt("Numéro de la piste :",t.textContent);if(v!==null&&v.trim()){S.labels[t.dataset.p]=v.trim();save();render()}}
+ if(t.dataset.clr){const c=S.cats[day].find(x=>x.id===t.dataset.clr);
+  if(c&&confirm("Vider toutes les pistes de « "+c.name+" » ? Les arbitres seront libérés.")){for(const p in S.assign[day])if(S.assign[day][p].cat===c.id)S.assign[day][p]={cat:"",ref:""};save();render()}}
  if(t.dataset.v){view=t.dataset.v;showView()}
  if(t.dataset.d){day=t.dataset.d;render();if($("#cfgOv").classList.contains("show"))cfg()}
  if(t.dataset.t){tab=t.dataset.t;cfg()}});
@@ -196,7 +199,7 @@ function renderRecap(){
   let N='<div class="rl"><b>Terminé</b></div>';
   if(nx>=0){const r=RR[nx][0],x=P[r]||{};
    N=`<div class="rl${x.s?" run":""}"><span>Suivant : <b>${RR[nx][1]}</b></span><label>Début ${tin(c.id,r,"s",x.s)}</label><label>Fin ${tin(c.id,r,"e",x.e)}</label>${nx?`<label>Non concerné <input type="checkbox" data-pc="${c.id}" data-pr="${r}" data-pf="nc"></label>`:""}</div>`}
-  return`<div class="rc" style="--c:${S.colors[w]}"><div class="rm"><h4>${esc(c.name)}</h4>${L}${N}</div><div class="rp"><span>Pistes</span>${pl}</div></div>`})).join("")}
+  return`<div class="rc" style="--c:${S.colors[w]}"><div class="rm"><h4>${esc(c.name)}</h4>${L}${N}</div><div class="rp"><span>Pistes</span>${pl}${Object.values(S.assign[day]).some(a=>a.cat===c.id)?`<button class="clr" data-clr="${c.id}">Vider les pistes</button>`:""}</div></div>`})).join("")}
 function renderProg(){const RR=rounds();
  $("#progBody").innerHTML=`<h2>Tableau d’avancement — ${DN[day]}</h2>`+Object.keys(W).map(w=>{const cs=S.cats[day].filter(c=>c.weapon===w);if(!cs.length)return"";
   return`<h3 style="color:${S.colors[w]}">${W[w]}</h3><div class="sc"><table class="pt" style="--c:${S.colors[w]}"><thead><tr><th>Catégorie</th>${RR.map(r=>`<th>${r[1]}</th>`).join("")}</tr></thead><tbody>${cs.map(c=>{const P=S.prog[day][c.id]||{},I=P.info||{};
