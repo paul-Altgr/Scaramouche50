@@ -82,6 +82,10 @@ input[type=color]{padding:0;width:44px;height:32px}
 [data-theme=ivoire] .room,[data-theme=ivoire] .avance,[data-theme=ivoire] .box{border-color:var(--line)}
 [data-theme=atlantique]{--bg:#06121f;--panel:#0c1d30;--line:#1f3a57;--gold:#3fc1c9;--gold2:#9be3e8;--txt:#e3eef7;--mut:#7f98ae;--ink:#030b14;--onacc:#03121a}
 [data-theme=bordeaux]{--bg:#14070b;--panel:#1f0d13;--line:#4a2530;--gold:#e0b4a4;--gold2:#f3d9cf;--txt:#f1e4df;--mut:#a58a86;--ink:#0b0306;--onacc:#1a0a0e}
+.chr{color:var(--gold);font:600 14px Jost,sans-serif;font-variant-numeric:tabular-nums;margin-left:auto}.chr::before{content:"⏱ "}
+#tlBody h5{margin:10px 0 2px;font:500 12px Jost,sans-serif;color:var(--mut);text-transform:uppercase;letter-spacing:.08em}
+.lc{display:flex;justify-content:space-between;align-items:center;gap:10px;border-left:4px solid var(--c);padding:6px 10px;margin:5px 0;border-radius:3px;background:color-mix(in srgb,var(--c) 18%,var(--ink))}
+.lc span{display:flex;gap:8px;align-items:center;color:var(--mut);font-size:13px}.lc span b{margin:0}
 .th{display:flex;flex-direction:column;gap:4px;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:2px}
 .th span{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.08em}
 .th button{text-align:left;padding:4px 8px}.th button.on{background:var(--gold);color:var(--onacc);border-color:var(--gold)}
@@ -105,7 +109,8 @@ input[type=color]{padding:0;width:44px;height:32px}
 <main>
 <div class="room"><h3>Salle 2</h3><div class="rows" id="r2"></div></div>
 <div class="avance"><h3>Avancement des compétitions</h3><div id="recap"></div></div>
-<div class="room"><h3>Salle 1</h3><div class="two"><div class="rows" id="r3"></div><div class="rows" id="r4"></div></div></div>
+<div class="col"><div class="room"><h3>Salle 1</h3><div class="two"><div class="rows" id="r3"></div><div class="rows" id="r4"></div></div></div>
+<div class="room"><h3>Compétitions à lancer</h3><div id="tlBody"></div></div></div>
 </main>
 
 <section class="progw" id="prog"><div id="progBody"></div></section>
@@ -146,7 +151,7 @@ $("#ref").onclick=async()=>{if(!loaded)return;$("#st").textContent="Actualisatio
 const placed=()=>new Set(Object.values(S.assign[day]).map(a=>a.ref).filter(Boolean));
 
 function render(){
- renderRecap();renderProg();
+ renderRecap();renderProg();renderLaunch();
  document.querySelectorAll(".days button").forEach(b=>b.classList.toggle("on",b.dataset.d===day));
  $("#legend").innerHTML=Object.keys(W).map(w=>`<span><i style="background:${S.colors[w]}"></i>${AB[w]}</span>`).join("");
  const used=placed(),C=S.cats[day];
@@ -207,10 +212,26 @@ function st(c){const P=S.prog[day][c.id]||{},RR=rounds();let last=-1,nx=-1;
 function lastStart(id){const P=S.prog[day][id]||{},RR=rounds();
  for(let i=RR.length-1;i>=0;i--){const x=P[RR[i][0]]||{};if(!x.nc&&x.s)return x.s}return""}
 const tin=(c,r,f,v)=>`<input type="time" data-pc="${c}" data-pr="${r}" data-pf="${f}" value="${v||""}">`;
+const hm=t=>{const a=t.split(":");return+a[0]*60+ +a[1]};
+const nowSec=()=>{const d=new Date();return d.getHours()*3600+d.getMinutes()*60+d.getSeconds()};
+const fmt=x=>{x=Math.max(0,x);const h=Math.floor(x/3600),m=Math.floor(x%3600/60),q=x%60,p=n=>String(n).padStart(2,"0");return h?h+":"+p(m)+":"+p(q):p(m)+":"+p(q)};
+const since=t=>fmt(nowSec()-hm(t)*60);
+function tick(){document.querySelectorAll("[data-since]").forEach(el=>el.textContent=since(el.dataset.since))}
+function renderLaunch(){const wait=[],start=[];
+ for(const w of Object.keys(W))for(const c of S.cats[day].filter(c=>c.weapon===w)){
+  const{P,RR,last,nx}=st(c),col=S.colors[w];
+  if(last>=0&&nx>=0&&!(P[RR[nx][0]]||{}).s)wait.push({c,col,e:P[RR[last][0]].e,r:RR[last][1]});
+  else if(!(P.p1&&P.p1.s)&&(P.info||{}).debut){const u=hm(P.info.debut)*60-nowSec();if(u<=5400)start.push({c,col,t:P.info.debut,u})}}
+ start.sort((a,b)=>hm(a.t)-hm(b.t));
+ const rs=start.map(x=>`<div class="lc" style="--c:${x.col}"><b>${esc(x.c.name)}</b><span>${x.t} · ${x.u>=0?"dans "+Math.ceil(x.u/60)+" min":"retard de "+Math.floor(-x.u/60)+" min"}</span></div>`).join("");
+ const rw=wait.map(x=>`<div class="lc" style="--c:${x.col}"><b>${esc(x.c.name)}</b><span>${x.r} fini à ${x.e}<b class="chr" data-since="${x.e}">${since(x.e)}</b></span></div>`).join("");
+ $("#tlBody").innerHTML=(rs?"<h5>À démarrer</h5>"+rs:"")+(rw?"<h5>Tour suivant à lancer</h5>"+rw:"")||'<span style="color:var(--mut)">Rien à lancer pour le moment</span>'}
+setInterval(()=>{if(loaded){renderLaunch();tick()}},1000);
 function renderRecap(){
  $("#recap").innerHTML=Object.keys(W).flatMap(w=>S.cats[day].filter(c=>c.weapon===w).map(c=>{const{P,RR,last,nx}=st(c);
+  const wait=last>=0&&nx>=0&&!(P[RR[nx][0]]||{}).s;
   const pl=Object.keys(S.assign[day]).filter(p=>S.assign[day][p].cat===c.id).sort((x,y)=>x-y).map(p=>`<b>${esc(S.labels[p]||pad(p))}</b>`).join("")||"<em>—</em>";
-  const L=last<0?"":`<div class="rl"><span>Dernier fini : <b>${RR[last][1]}</b></span><label>Fin ${tin(c.id,RR[last][0],"e",P[RR[last][0]].e)}</label></div>`;
+  const L=last<0?"":`<div class="rl"><span>Dernier fini : <b>${RR[last][1]}</b></span><label>Fin ${tin(c.id,RR[last][0],"e",P[RR[last][0]].e)}</label>${wait?`<b class="chr" data-since="${P[RR[last][0]].e}">${since(P[RR[last][0]].e)}</b>`:""}</div>`;
   let N='<div class="rl"><b>Terminé</b></div>';
   if(nx>=0){const r=RR[nx][0],x=P[r]||{};
    N=`<div class="rl${x.s?" run":""}"><span>Suivant : <b>${RR[nx][1]}</b></span><label>Début ${tin(c.id,r,"s",x.s)}</label><label>Fin ${tin(c.id,r,"e",x.e)}</label>${nx?`<label>Non concerné <input type="checkbox" data-pc="${c.id}" data-pr="${r}" data-pf="nc"></label>`:""}</div>`}
