@@ -94,7 +94,7 @@ input[type=color]{padding:0;width:44px;height:32px}
 .cp{display:flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:4px;padding:4px 6px;background:var(--ink)}.cp b{min-width:30px;color:var(--gold2)}.cp.off{opacity:.55}.cp button{padding:2px 7px}
 
 /* ===== Onglet Arbitres ===== */
-.arbw .bar,#arb .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.arbw .bar,#arb .bar,#prog .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0}
 .at{border-collapse:separate;border-spacing:0 4px;min-width:100%}
 .at th{font:500 13px Jost,sans-serif;color:var(--gold2);text-align:left;padding:6px 8px;white-space:nowrap;border-bottom:2px solid var(--gold)}
 .at td{padding:6px 8px;background:var(--ink);border-top:1px solid var(--line);border-bottom:1px solid var(--line);vertical-align:middle}
@@ -105,6 +105,8 @@ input[type=color]{padding:0;width:44px;height:32px}
 .at td.sg{min-width:160px;height:52px}
 .at .amt{white-space:nowrap;color:var(--gold2)}
 .at input[type=checkbox]{width:18px;height:18px}
+header{position:sticky;top:0;z-index:7;background:var(--bg)}
+#clock{font:600 20px 'Courier New',ui-monospace,monospace;color:var(--gold2);letter-spacing:.06em;font-variant-numeric:tabular-nums;white-space:nowrap}
 #printArea{display:none}
 @media print{
  body.printing>*:not(#printArea){display:none!important}
@@ -131,7 +133,7 @@ input[type=color]{padding:0;width:44px;height:32px}
 <header>
 <h1 id="ttl" title="Cliquer pour modifier le titre" style="cursor:pointer">SCARAMOUCHE 50</h1>
 <div class="days" id="days"></div>
-<div class="legend" id="legend"></div><div class="views"><button data-v="plan">Plan</button><button data-v="prog">Tableau d’avancement</button><button data-v="arb">Arbitres</button></div><span class="sp"></span><span id="st"></span><button id="ref" title="Recharger les données depuis le serveur">↻ Actualiser</button>
+<div class="legend" id="legend"></div><div class="views"><button data-v="plan">Plan</button><button data-v="prog">Tableau d’avancement</button><button data-v="arb">Arbitres</button></div><span class="sp"></span><span id="clock" title="Heure actuelle"></span><span id="st"></span><button id="ref" title="Recharger les données depuis le serveur">↻ Actualiser</button>
 <button id="cfgBtn">Configuration</button>
 <div class="menu"><button id="burger" aria-label="Menu" aria-expanded="false">☰</button><div class="mlist" id="mlist"><button id="exp">Exporter</button><button id="imp">Importer</button><button id="out">Déconnexion</button></div></div><input type="file" id="impf" accept=".json" hidden>
 </header>
@@ -143,7 +145,7 @@ input[type=color]{padding:0;width:44px;height:32px}
 <div class="col" id="roomsL"></div>
 </main>
 
-<section class="progw" id="prog"><div id="progBody"></div></section>
+<section class="progw" id="prog"><div class="bar"><button id="progPrint">🖨 Imprimer</button></div><div id="progBody"></div></section>
 <section class="progw" id="arb"><div id="arbBody"></div></section>
 
 <div class="ov" id="cfgOv"><div class="box">
@@ -154,6 +156,7 @@ input[type=color]{padding:0;width:44px;height:32px}
 
 <div class="ov" id="colOv"><div class="box"><h2>Colonnes du tableau des arbitres</h2><p style="color:var(--mut);margin-top:0">Cocher pour afficher une colonne, ↑ ↓ pour changer l’ordre. Il est aussi possible d’ajouter ses propres colonnes.</p><div id="colBody"></div><div class="rowc"><span class="sp"></span><button id="colClose">Fermer</button></div></div></div>
 <div class="ov" id="prOv"><div class="box"><h2>Imprimer le tableau</h2><div id="prBody"></div><div class="rowc"><span class="sp"></span><button id="prClose">Annuler</button><button id="prGo">Imprimer</button></div></div></div>
+<div class="ov" id="ppOv"><div class="box"><h2>Imprimer le tableau d’avancement</h2><div id="ppBody"></div><div class="rowc"><span class="sp"></span><button id="ppClose">Annuler</button><button id="ppGo">Imprimer</button></div></div></div>
 <div id="printArea"></div>
 
 <script>
@@ -475,6 +478,32 @@ window.addEventListener("afterprint",()=>document.body.classList.remove("printin
 /* Rémunération (onglet de configuration) : capture pour que la valeur soit enregistrée avant le save()/render() existant */
 $("#cfgBody").addEventListener("change",e=>{const t=e.target,l=t.dataset.pay;if(!l)return;normArb();
  const v=parseFloat(String(t.value).replace(",","."));S.arb.pay[l]=isFinite(v)&&v>=0?v:""},true);
+
+/* Horloge en direct */
+function tickClock(){const d=new Date();$("#clock").textContent=pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds())}
+tickClock();setInterval(tickClock,1000);
+
+/* Impression du tableau d’avancement */
+function pp(){const P=S.pp=(S.pp&&typeof S.pp==="object")?S.pp:{};if(!Array.isArray(P.weapons))P.weapons=Object.keys(W);if(!Array.isArray(P.hide))P.hide=[];return P}
+const PPINFO=[["appel","Appel"],["scratch","Scratch"],["debut","Début"]];
+function ppDlg(){const P=pp();
+ $("#ppBody").innerHTML='<p style="color:var(--mut);margin-top:0">Armes à imprimer :</p><div class="rowc">'+Object.keys(W).map(w=>`<label class="lv"><input type="checkbox" data-ppw="${w}"${P.weapons.includes(w)?" checked":""}> ${W[w]}</label>`).join("")+'</div><p style="color:var(--mut)">Colonnes à imprimer ('+esc(dayName(day))+') :</p>'+
+ PPINFO.map(([f,l])=>`<div class="rowc"><label class="lv"><input type="checkbox" data-ppc="i_${f}"${P.hide.includes("i_"+f)?"":" checked"}> ${l}</label></div>`).join("")+
+ rounds().map(r=>`<div class="rowc"><label class="lv"><input type="checkbox" data-ppc="${r[0]}"${P.hide.includes(r[0])?"":" checked"}> ${esc(r[1])}</label></div>`).join("")}
+$("#ppBody").addEventListener("change",e=>{const t=e.target,d=t.dataset,P=pp();
+ if(d.ppw){const i=P.weapons.indexOf(d.ppw);if(t.checked&&i<0)P.weapons.push(d.ppw);else if(!t.checked&&i>=0)P.weapons.splice(i,1)}
+ else if(d.ppc){const i=P.hide.indexOf(d.ppc);if(t.checked&&i>=0)P.hide.splice(i,1);else if(!t.checked&&i<0)P.hide.push(d.ppc)}
+ else return;save()});
+$("#progPrint").onclick=()=>{ppDlg();$("#ppOv").classList.add("show")};
+$("#ppClose").onclick=()=>$("#ppOv").classList.remove("show");
+function doPrintProg(){const P=pp(),RR=rounds().filter(r=>!P.hide.includes(r[0])),IC=PPINFO.filter(([f])=>!P.hide.includes("i_"+f)),ws=Object.keys(W).filter(w=>P.weapons.includes(w)&&S.cats[day].some(c=>c.weapon===w));
+ if(!ws.length){alert("Choisir au moins une arme (avec des catégories).");return}
+ const dt=S.dates&&S.dates[day]?" — "+S.dates[day].slice(8,10)+"/"+S.dates[day].slice(5,7)+"/"+S.dates[day].slice(0,4):"";
+ const pa=$("#printArea");pa.style.setProperty("--rh","10mm");
+ pa.innerHTML=`<h2>Tableau d’avancement — ${esc(dayName(day))}${dt}</h2>`+ws.map(w=>`<h3 style="color:#000;font-size:14pt;margin:6mm 0 2mm">${W[w]}</h3><table><thead><tr><th>Catégorie</th>${IC.map(([f,l])=>`<th>${l}</th>`).join("")}${RR.map(r=>`<th>${esc(r[1])}</th>`).join("")}</tr></thead><tbody>${S.cats[day].filter(c=>c.weapon===w).map(c=>{const Pc=S.prog[day][c.id]||{},I=Pc.info||{};
+  return`<tr><td>${esc(c.name)}</td>${IC.map(([f])=>`<td>${esc(I[f]||"")}</td>`).join("")}${RR.map(r=>{const x=Pc[r[0]]||{};return`<td>${x.nc?"N/C":(x.s||x.e)?esc((x.s||"")+" – "+(x.e||"")):""}</td>`}).join("")}</tr>`}).join("")}</tbody></table>`).join("");
+ save();$("#ppOv").classList.remove("show");document.body.classList.add("printing");setTimeout(()=>window.print(),50)}
+$("#ppGo").onclick=doPrintProg;
 
 renderDays();showView();
 const THEMES=[["sco","SCO"],["sombre","Sombre"],["clair","Clair"],["ivoire","Ivoire"],["atlantique","Atlantique"],["bordeaux","Bordeaux"]];
