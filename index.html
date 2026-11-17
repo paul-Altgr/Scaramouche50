@@ -107,6 +107,12 @@ input[type=color]{padding:0;width:44px;height:32px}
 .at input[type=checkbox]{width:18px;height:18px}
 header{position:sticky;top:0;z-index:7;background:var(--bg)}
 #clock{font:600 20px 'Courier New',ui-monospace,monospace;color:var(--gold2);letter-spacing:.06em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dg button.pzb{padding:0 6px;font-size:12px;line-height:1.5;margin-left:4px}
+.dg hr{border:0;border-top:1px solid var(--c);opacity:.6;margin:6px 0}
+.dg p.pz{flex-wrap:wrap;align-items:center}
+.dg p.pz b.tm{font-variant-numeric:tabular-nums;color:var(--gold2)}
+.dg p.late{background:color-mix(in srgb,#e5483a 28%,transparent);border-radius:3px;padding:1px 4px}
+.dg p.late,.dg p.late span,.dg p.late b.tm{color:#e5483a;font-weight:600}
 #printArea{display:none}
 @media print{
  body.printing>*:not(#printArea){display:none!important}
@@ -157,6 +163,7 @@ header{position:sticky;top:0;z-index:7;background:var(--bg)}
 <div class="ov" id="colOv"><div class="box"><h2>Colonnes du tableau des arbitres</h2><p style="color:var(--mut);margin-top:0">Cocher pour afficher une colonne, ↑ ↓ pour changer l’ordre. Il est aussi possible d’ajouter ses propres colonnes.</p><div id="colBody"></div><div class="rowc"><span class="sp"></span><button id="colClose">Fermer</button></div></div></div>
 <div class="ov" id="prOv"><div class="box"><h2>Imprimer le tableau</h2><div id="prBody"></div><div class="rowc"><span class="sp"></span><button id="prClose">Annuler</button><button id="prGo">Imprimer</button></div></div></div>
 <div class="ov" id="ppOv"><div class="box"><h2>Imprimer le tableau d’avancement</h2><div id="ppBody"></div><div class="rowc"><span class="sp"></span><button id="ppClose">Annuler</button><button id="ppGo">Imprimer</button></div></div></div>
+<div class="ov" id="pzOv"><div class="box" style="width:min(420px,100%)"><h2 id="pzTitle">Pause</h2><p style="color:var(--mut);margin-top:0">Durée de la pause :</p><div class="rowc"><button data-pzm="10">10 min</button><button data-pzm="15">15 min</button><button data-pzm="20">20 min</button><button data-pzm="30">30 min</button><button data-pzm="45">45 min</button><button data-pzm="60">60 min</button></div><div class="rowc"><label class="lv">Autre durée <input type="number" id="pzMin" min="1" max="600" style="width:80px"> min</label><button id="pzOkM">OK</button></div><p style="color:var(--mut)">ou heure de fin de pause :</p><div class="rowc"><input type="time" id="pzEnd"><button id="pzOkE">OK</button></div><div class="rowc"><span class="sp"></span><button id="pzCancel">Annuler</button></div></div></div>
 <div id="printArea"></div>
 
 <script>
@@ -206,7 +213,7 @@ const placed=()=>new Set(Object.values(S.assign[day]).map(a=>a.ref).filter(Boole
 
 function pisteHTML(id,C,used){
   const a=S.assign[day][id]||{},cat=C.find(c=>c.id===a.cat),w=cat&&cat.weapon;
-  const cur=S.refs[day].find(r=>r.id===a.ref);const refs=S.refs[day].filter(r=>r.id===a.ref||(!used.has(r.id)&&!r.absent&&(!w||r.lv[w])));
+  const cur=S.refs[day].find(r=>r.id===a.ref);const refs=S.refs[day].filter(r=>r.id===a.ref||(!used.has(r.id)&&!r.absent&&!r.pause&&(!w||r.lv[w])));
   return`<div class="piste${cat?" set":""}" style="--c:${w?S.colors[w]:"var(--gold)"}">
   ${cat?`<i class="ts">${lastStart(cat.id)}</i>`:""}<b class="num" data-p="${id}" title="Cliquer pour renommer">${esc(S.labels[id]||pad(id))}</b>
   <select data-k="cat" data-p="${id}"><option value="">Catégorie</option>${C.map(c=>`<option value="${c.id}"${c.id===a.cat?" selected":""}>${esc(c.name)}</option>`).join("")}</select>
@@ -217,8 +224,8 @@ function render(){normalize();normArb();
  renderDays();
  $("#legend").innerHTML=Object.keys(W).map(w=>`<span><i style="background:${S.colors[w]}"></i>${AB[w]}</span>`).join("");
  const used=placed(),C=S.cats[day];
- $("#dispo").innerHTML=Object.keys(W).map(w=>{const all=S.refs[day].filter(r=>r.lv[w]&&!r.absent),l=all.filter(r=>!used.has(r.id));
-  return`<div style="--c:${S.colors[w]}"><h3>${W[w]} (${l.length}/${all.length})</h3>${l.map(r=>`<p>${esc(r.name)}<span>${r.lv[w]}</span></p>`).join("")||'<p><span>—</span></p>'}</div>`}).join("");
+ $("#dispo").innerHTML=Object.keys(W).map(w=>{const all=S.refs[day].filter(r=>r.lv[w]&&!r.absent),l=all.filter(r=>!used.has(r.id)&&!r.pause),pz=all.filter(r=>!used.has(r.id)&&r.pause).sort((a,b)=>a.pause-b.pause);
+  return`<div style="--c:${S.colors[w]}"><h3>${W[w]} (${l.length}/${all.length})</h3>${l.map(r=>`<p>${esc(r.name)}<span>${r.lv[w]} <button class="pzb" data-pz="${r.id}" title="Envoyer en pause">⏸</button></span></p>`).join("")||'<p><span>—</span></p>'}${pz.length?"<hr>"+pz.map(r=>`<p class="pz">${esc(r.name)}<span><b class="tm" data-pend="${r.pause}"></b> · fin ${hhmm(r.pause)} <button class="pzb" data-pzx="${r.id}" title="Retirer de la pause">▶</button></span></p>`).join(""):""}</div>`}).join("");pzTick();
  const rh=r=>{const n=r.cols.length,rows=Math.max(0,...r.cols.map(c=>c.length));let cells="";
   for(let i=0;i<rows;i++)for(let j=0;j<n;j++){const id=r.cols[j][i];
    if(id===undefined||r.hide.includes(id)){if(n>1)cells+='<div class="ghost"></div>'}else cells+=pisteHTML(id,C,used)}
@@ -407,7 +414,7 @@ $("#arbBody").addEventListener("change",e=>{const t=e.target,d=t.dataset;if(!d.a
  if(d.af==="name"){r.name=t.value;sync(r)}
  else if(d.af==="lv"){if(t.value)r.lv[d.aw]=t.value;else delete r.lv[d.aw];sync(r)}
  else if(d.af==="both"){r.both=t.checked;if(r.both)sync(r);else others().forEach(k=>{const o=S.refs[k].find(x=>x.id===r.id);if(o)o.both=false})}
- else if(d.af==="pres")r.absent=!t.checked;
+ else if(d.af==="pres"){r.absent=!t.checked;if(r.absent)delete r.pause}
  else if(d.ak){const D=S.arb.data[day]=S.arb.data[day]||{},o=D[r.id]=D[r.id]||{};
   o[d.ak]=t.type==="checkbox"?t.checked:t.value;redo=(d.ak==="paye"||d.ak==="retenue")}
  else return;
@@ -479,8 +486,28 @@ window.addEventListener("afterprint",()=>document.body.classList.remove("printin
 $("#cfgBody").addEventListener("change",e=>{const t=e.target,l=t.dataset.pay;if(!l)return;normArb();
  const v=parseFloat(String(t.value).replace(",","."));S.arb.pay[l]=isFinite(v)&&v>=0?v:""},true);
 
+/* Pause des arbitres disponibles */
+function hhmm(ms){const d=new Date(+ms);return pad(d.getHours())+":"+pad(d.getMinutes())}
+function pzFmt(sec){const n=sec<0,x=Math.abs(sec),h=Math.floor(x/3600),m=Math.floor(x%3600/60),q=x%60;return(n?"-":"")+(h?h+":"+pad(m):pad(m))+":"+pad(q)}
+function pzTick(){const now=Date.now();document.querySelectorAll("[data-pend]").forEach(el=>{const end=+el.dataset.pend;
+ el.textContent=pzFmt(Math.ceil((end-now)/1000));const p=el.closest("p");if(p)p.classList.toggle("late",end<=now)})}
+let pzRef=null;
+function pzOpen(id){const r=S.refs[day].find(x=>x.id===id);if(!r)return;pzRef=id;
+ $("#pzTitle").textContent="Pause — "+r.name;$("#pzMin").value="";$("#pzEnd").value="";$("#pzOv").classList.add("show")}
+function pzSet(ms){const r=S.refs[day].find(x=>x.id===pzRef);$("#pzOv").classList.remove("show");pzRef=null;if(!r)return;r.pause=ms;save();render()}
+$("#pzOv").addEventListener("click",e=>{const t=e.target;
+ if(t.dataset.pzm)pzSet(Date.now()+ +t.dataset.pzm*60000);
+ else if(t.id==="pzOkM"){const m=+$("#pzMin").value;if(!(m>0)){$("#pzMin").focus();return}pzSet(Date.now()+Math.round(m*60000))}
+ else if(t.id==="pzOkE"){const v=$("#pzEnd").value;if(!v){$("#pzEnd").focus();return}
+  const a=v.split(":"),x=new Date();x.setHours(+a[0],+a[1],0,0);
+  if(x.getTime()<=Date.now()){alert("Cette heure est déjà passée.");return}pzSet(x.getTime())}
+ else if(t.id==="pzCancel")$("#pzOv").classList.remove("show")});
+$("#dispo").addEventListener("click",e=>{const t=e.target.closest("button");if(!t)return;
+ if(t.dataset.pz)pzOpen(t.dataset.pz);
+ else if(t.dataset.pzx){const r=S.refs[day].find(x=>x.id===t.dataset.pzx);if(r){delete r.pause;save();render()}}});
+
 /* Horloge en direct */
-function tickClock(){const d=new Date();$("#clock").textContent=pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds())}
+function tickClock(){const d=new Date();$("#clock").textContent=pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds());pzTick()}
 tickClock();setInterval(tickClock,1000);
 
 /* Impression du tableau d’avancement */
