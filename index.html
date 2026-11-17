@@ -129,7 +129,7 @@ input[type=color]{padding:0;width:44px;height:32px}
 <button id="su" type="button" style="display:none">Créer un compte</button><div class="err" id="err"></div></div></div>
 
 <header>
-<h1>SCARAMOUCHE 50</h1>
+<h1 id="ttl" title="Cliquer pour modifier le titre" style="cursor:pointer">SCARAMOUCHE 50</h1>
 <div class="days" id="days"></div>
 <div class="legend" id="legend"></div><div class="views"><button data-v="plan">Plan</button><button data-v="prog">Tableau d’avancement</button><button data-v="arb">Arbitres</button></div><span class="sp"></span><span id="st"></span><button id="ref" title="Recharger les données depuis le serveur">↻ Actualiser</button>
 <button id="cfgBtn">Configuration</button>
@@ -161,7 +161,7 @@ const SUPABASE_URL="https://jdknzqutmrocepaxzkqs.supabase.co";
 const SUPABASE_KEY="sb_publishable_0Nx-jsettHr0ZOkL252giQ_DtnkYKUD";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const W={epee:"Épée",fleuret:"Fleuret",sabre:"Sabre"},AB={epee:"EP",fleuret:"FL",sabre:"SA"};
-const LV=["fdep","dep","freg","reg","fnat","nat","fint","int"];
+const LV=["fdep","dep","freg","reg","fnat","nat","fint","intB","intA"];
 const WD=["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"];
 const wd=id=>{const d=S.dates&&S.dates[id];if(!d)return"";const x=new Date(d+"T12:00:00");return isNaN(x)?"":WD[x.getDay()]};
 function dayName(id){const n=wd(id);
@@ -210,7 +210,7 @@ function pisteHTML(id,C,used){
   <select data-k="ref" data-p="${id}"><option value="">Arbitre</option>${refs.map(r=>`<option value="${r.id}"${r.id===a.ref?" selected":""}>${esc(r.name)} · ${lvTxt(r,w)}</option>`).join("")}</select>
   <div class="cap">${cur?`<b>${esc(cur.name)}</b><span>${lvTxt(cur,w)}</span>`:""}${cat?`<span class="ct">${cur?"· ":""}${esc(cat.name)}</span>`:""}</div></div>`}
 function render(){normalize();normArb();
- renderRecap();renderProg();renderLaunch();renderArb();
+ renderRecap();renderProg();renderLaunch();renderArb();renderTitle();
  renderDays();
  $("#legend").innerHTML=Object.keys(W).map(w=>`<span><i style="background:${S.colors[w]}"></i>${AB[w]}</span>`).join("");
  const used=placed(),C=S.cats[day];
@@ -359,14 +359,16 @@ $("#impf").onchange=async e=>{const f=e.target.files[0];if(!f)return;
  try{const o=JSON.parse(await f.text());if(!o.cats||!o.refs)throw 0;
   if(confirm("Remplacer toutes les données actuelles par cette sauvegarde ?")){if(!o.days)o.days=["sat","sun"];if(!o.rooms)o.rooms=defRooms();S=Object.assign(S,o);save();render()}}catch{alert("Fichier de sauvegarde invalide")}e.target.value=""};
 /* ===== Onglet Arbitres ===== */
-const ARBDEF=[["nom","Arbitre"],["form","Formations"],["arrivee","Heure d’arrivée"],["fin","Heure de fin"],["repas","Repas pris"],["remun","Rémunération"],["paye","Payé"],["signature","Signature"]];
+const ARBDEF=[["nom","Arbitre"],["form","Formations"],["present","Présent"],["arrivee","Heure d’arrivée"],["fin","Heure de fin"],["repas","Repas pris"],["remun","Rémunération"],["paye","Payé"],["signature","Signature"]];
 const ARBTYPE={case:"Case à cocher",texte:"Texte",nombre:"Nombre",heure:"Heure"};
 const BTYPE={arrivee:"heure",fin:"heure",repas:"texte"};
 function normArb(){
  const A=S.arb=(S.arb&&typeof S.arb==="object")?S.arb:{};
  if(!Array.isArray(A.cols))A.cols=[];
- ARBDEF.forEach(([id,label])=>{if(!A.cols.some(c=>c.id===id))A.cols.push({id,label,on:true})});
- A.cols.forEach(c=>{if(c.id==="nom")c.on=true});
+ ARBDEF.forEach(([id,label])=>{if(!A.cols.some(c=>c.id===id)){const c={id,label,on:true},j=A.cols.findIndex(x=>x.id==="arrivee");if(id==="present"&&j>=0)A.cols.splice(j,0,c);else A.cols.push(c)}});
+ A.cols.forEach(c=>{if(c.id==="nom"||c.id==="present")c.on=true});
+ for(const d of S.days)for(const r of S.refs[d]||[])if(r.absent===undefined)r.absent=!!A.migPresent;
+ A.migPresent=true;
  if(!A.pay||typeof A.pay!=="object")A.pay={};
  LV.forEach(l=>{if(A.pay[l]===undefined)A.pay[l]=""});
  if(!A.data||typeof A.data!=="object")A.data={};
@@ -376,13 +378,14 @@ function normArb(){
 const money=v=>(v===""||v==null||isNaN(+v))?"":(+v).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})+" €";
 const arbRows=()=>{const D=S.arb.data[day]||{};
  return S.refs[day].slice().sort((a,b)=>(!!(D[a.id]||{}).paye-!!(D[b.id]||{}).paye)||String(a.name||"").localeCompare(String(b.name||""),"fr",{sensitivity:"base"}))};
-const ownLv=r=>LV.filter(l=>Object.values(r.lv).includes(l));
+const ownLv=r=>[...new Set(Object.values(r.lv))].sort((a,b)=>{const x=LV.indexOf(a),y=LV.indexOf(b);return(x<0?99:x)-(y<0?99:y)});
 function arbCell(c,r,o){const id=c.id,a=`data-ar="${r.id}"`,ty=c.custom?c.type:BTYPE[id];
  if(id==="nom")return`<td><input type="text" value="${esc(r.name)}" ${a} data-af="name"></td>`;
- if(id==="form")return`<td><div class="rowc" style="margin:0;flex-wrap:nowrap">${Object.keys(W).map(w=>`<label class="lv">${AB[w]}<select ${a} data-af="lv" data-aw="${w}"><option value="">—</option>${LV.map(l=>`<option${r.lv[w]===l?" selected":""}>${l}</option>`).join("")}</select></label>`).join("")}</div></td>`;
+ if(id==="form")return`<td><div class="rowc" style="margin:0;flex-wrap:nowrap">${Object.keys(W).map(w=>`<label class="lv">${AB[w]}<select ${a} data-af="lv" data-aw="${w}"><option value="">—</option>${LV.concat(r.lv[w]&&!LV.includes(r.lv[w])?[r.lv[w]]:[]).map(l=>`<option${r.lv[w]===l?" selected":""}>${l}</option>`).join("")}</select></label>`).join("")}</div></td>`;
  if(id==="remun"){const own=ownLv(r);if(o.retenue&&!own.includes(o.retenue))own.push(o.retenue);
   const m=o.retenue?money(S.arb.pay[o.retenue]):"";
   return`<td><div class="rowc" style="margin:0;flex-wrap:nowrap"><select ${a} data-ak="retenue"><option value="">Formation retenue</option>${own.map(l=>`<option${o.retenue===l?" selected":""}>${l}</option>`).join("")}</select><b class="amt">${o.retenue?(m||'<span style="color:var(--mut)">à définir</span>'):""}</b></div></td>`}
+ if(id==="present")return`<td style="text-align:center"><input type="checkbox" ${a} data-af="pres"${r.absent?"":" checked"} title="Présent"></td>`;
  if(id==="paye")return`<td style="text-align:center"><input type="checkbox" ${a} data-ak="paye"${o.paye?" checked":""} title="Rémunéré"></td>`;
  if(id==="signature")return`<td class="sg"></td>`;
  const v=esc(o[id]??"");
@@ -394,29 +397,34 @@ function renderArb(){const A=S.arb,cols=A.cols.filter(c=>c.on),D=A.data[day]||{}
  const b=$("#arbBoth"),bo=!!(b&&b.checked);
  const th=cols.map(c=>`<th>${esc(c.label)}</th>`).join("")+"<th>Gestion</th>";
  const tr=rows.map(r=>{const o=D[r.id]||{};
-  return`<tr class="${o.paye?"paid":""}${r.absent?" abs":""}">${cols.map(c=>arbCell(c,r,o)).join("")}<td><div class="rowc" style="margin:0;flex-wrap:nowrap"><label class="lv"><input type="checkbox" data-ar="${r.id}" data-af="both"${r.both?" checked":""}> 2 jours</label><label class="lv"><input type="checkbox" data-ar="${r.id}" data-af="abs"${r.absent?" checked":""}> Absent</label><button data-adel="${r.id}" title="Supprimer l’arbitre">✕</button></div></td></tr>`}).join("");
+  return`<tr class="${o.paye?"paid":""}${r.absent?" abs":""}">${cols.map(c=>arbCell(c,r,o)).join("")}<td><div class="rowc" style="margin:0;flex-wrap:nowrap"><label class="lv"><input type="checkbox" data-ar="${r.id}" data-af="both"${r.both?" checked":""}> 2 jours</label><button data-adel="${r.id}" title="Supprimer l’arbitre">✕</button></div></td></tr>`}).join("");
  $("#arbBody").innerHTML=`<h2>Arbitres — ${esc(dayName(day))}</h2><div class="bar"><button data-ab="add">+ Ajouter un arbitre</button><label class="lv"><input type="checkbox" id="arbBoth"${bo?" checked":""}> Présent les deux jours</label><span class="sp"></span><button data-ab="cols">⚙ Colonnes</button><button data-ab="print">🖨 Imprimer</button></div><div class="sc"><table class="at"><thead><tr>${th}</tr></thead><tbody>${tr||`<tr><td colspan="${cols.length+1}" style="color:var(--mut)">Aucun arbitre</td></tr>`}</tbody></table></div>`}
 $("#arbBody").addEventListener("change",e=>{const t=e.target,d=t.dataset;if(!d.ar)return;
  const r=S.refs[day].find(x=>x.id===d.ar);if(!r)return;let redo=true;
  if(d.af==="name"){r.name=t.value;sync(r)}
  else if(d.af==="lv"){if(t.value)r.lv[d.aw]=t.value;else delete r.lv[d.aw];sync(r)}
  else if(d.af==="both"){r.both=t.checked;if(r.both)sync(r);else others().forEach(k=>{const o=S.refs[k].find(x=>x.id===r.id);if(o)o.both=false})}
- else if(d.af==="abs")r.absent=t.checked;
+ else if(d.af==="pres")r.absent=!t.checked;
  else if(d.ak){const D=S.arb.data[day]=S.arb.data[day]||{},o=D[r.id]=D[r.id]||{};
   o[d.ak]=t.type==="checkbox"?t.checked:t.value;redo=(d.ak==="paye"||d.ak==="retenue")}
  else return;
  save();if(redo)render()});
 $("#arbBody").addEventListener("click",e=>{const t=e.target.closest("button");if(!t)return;const d=t.dataset;
- if(d.ab==="add"){const r={id:"r"+Date.now(),name:"Nouvel arbitre",lv:{},both:$("#arbBoth").checked};S.refs[day].push(r);sync(r);save();render()}
+ if(d.ab==="add"){const r={id:"r"+Date.now(),name:"Nouvel arbitre",lv:{},both:$("#arbBoth").checked,absent:true};S.refs[day].push(r);sync(r);save();render()}
  else if(d.ab==="cols"){colMgr();$("#colOv").classList.add("show")}
  else if(d.ab==="print"){prDlg();$("#prOv").classList.add("show")}
  else if(d.adel){const r=S.refs[day].find(x=>x.id===d.adel);if(!r)return;
   if(confirm(r.both?"Supprimer cet arbitre des deux jours ?":"Supprimer cet arbitre ?")){
    (r.both?S.days:[day]).forEach(k=>{S.refs[k]=S.refs[k].filter(x=>x.id!==r.id);if(S.arb.data[k])delete S.arb.data[k][r.id]});save();render()}}});
 
+/* Titre modifiable */
+const TTL0="SCARAMOUCHE 50";
+function renderTitle(){const t=S.title||TTL0;$("#ttl").textContent=t;document.title=t}
+$("#ttl").onclick=()=>{const v=prompt("Titre du tableau de bord :",S.title||TTL0);if(v!==null&&v.trim()){S.title=v.trim();save();render()}};
+
 /* Gestion des colonnes */
 function colMgr(){const A=S.arb;
- $("#colBody").innerHTML=A.cols.map(c=>`<div class="rowc"><label class="lv"><input type="checkbox" data-cm="on" data-ci="${c.id}"${c.on?" checked":""}${c.id==="nom"?" disabled":""}></label>${c.custom?`<input type="text" value="${esc(c.label)}" data-cm="label" data-ci="${c.id}"><span class="lv">${ARBTYPE[c.type]||""}</span>`:`<b style="flex:1;color:var(--gold2)">${esc(c.label)}</b>`}<button data-cm="up" data-ci="${c.id}" title="Monter">↑</button><button data-cm="down" data-ci="${c.id}" title="Descendre">↓</button>${c.custom?`<button data-cm="del" data-ci="${c.id}" title="Supprimer la colonne">✕</button>`:""}</div>`).join("")+
+ $("#colBody").innerHTML=A.cols.map(c=>`<div class="rowc"><label class="lv"><input type="checkbox" data-cm="on" data-ci="${c.id}"${c.on?" checked":""}${c.id==="nom"||c.id==="present"?" disabled":""}></label><input type="text" value="${esc(c.label)}" data-cm="label" data-ci="${c.id}">${c.custom?`<span class="lv">${ARBTYPE[c.type]||""}</span>`:""}<button data-cm="up" data-ci="${c.id}" title="Monter">↑</button><button data-cm="down" data-ci="${c.id}" title="Descendre">↓</button>${c.custom?`<button data-cm="del" data-ci="${c.id}" title="Supprimer la colonne">✕</button>`:""}</div>`).join("")+
  `<div class="rowc" style="border-top:1px solid var(--line);padding-top:10px;margin-top:10px"><input type="text" id="ncName" placeholder="Nom de la nouvelle colonne"><select id="ncType">${Object.keys(ARBTYPE).map(k=>`<option value="${k}">${ARBTYPE[k]}</option>`).join("")}</select><button id="ncAdd">Ajouter la colonne</button></div>`}
 $("#colBody").addEventListener("click",e=>{const t=e.target,d=t.dataset,A=S.arb;
  if(t.id==="ncAdd"){const n=$("#ncName").value.trim();if(!n){$("#ncName").focus();return}
@@ -438,7 +446,7 @@ $("#colClose").onclick=()=>$("#colOv").classList.remove("show");
 /* Impression */
 function prDlg(){const A=S.arb;
  $("#prBody").innerHTML='<p style="color:var(--mut);margin-top:0">Colonnes à imprimer :</p>'+A.cols.filter(c=>c.on).map(c=>`<div class="rowc"><label class="lv"><input type="checkbox" data-pcol="${c.id}"${c.id==="nom"||!A.printHide.includes(c.id)?" checked":""}${c.id==="nom"?" disabled":""}> ${esc(c.label)}</label></div>`).join("")+
- `<div class="rowc"><label class="lv">Hauteur des lignes (mm) <input type="number" id="prRow" min="8" max="60" value="${A.rowH}" style="width:80px"></label></div><div class="rowc"><label class="lv"><input type="checkbox" id="prAbs"${A.inclAbs?" checked":""}> Inclure les arbitres absents</label></div>`}
+ `<div class="rowc"><label class="lv">Hauteur des lignes (mm) <input type="number" id="prRow" min="8" max="60" value="${A.rowH}" style="width:80px"></label></div><div class="rowc"><label class="lv"><input type="checkbox" id="prAbs"${A.inclAbs?" checked":""}> Inclure les arbitres non présents</label></div>`}
 $("#prBody").addEventListener("change",e=>{const t=e.target,d=t.dataset,A=S.arb;
  if(d.pcol){const i=A.printHide.indexOf(d.pcol);if(t.checked&&i>=0)A.printHide.splice(i,1);else if(!t.checked&&i<0)A.printHide.push(d.pcol)}
  else if(t.id==="prRow")A.rowH=Math.max(8,Math.min(60,+t.value||15));
@@ -449,6 +457,7 @@ function printCell(c,r,o){const id=c.id,ty=c.custom?c.type:BTYPE[id];
  if(id==="nom")return`<td>${esc(r.name)}</td>`;
  if(id==="form")return`<td>${esc(lvTxt(r))}</td>`;
  if(id==="signature")return`<td class="sg"></td>`;
+ if(id==="present")return`<td style="text-align:center">${r.absent?"☐":"☑"}</td>`;
  if(id==="paye")return`<td style="text-align:center">${o.paye?"☑":"☐"}</td>`;
  if(id==="remun")return`<td>${o.retenue?esc(o.retenue)+(money(S.arb.pay[o.retenue])?" — "+money(S.arb.pay[o.retenue]):""):""}</td>`;
  if(ty==="case")return`<td style="text-align:center">${o[id]?"☑":"☐"}</td>`;
