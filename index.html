@@ -53,7 +53,7 @@ main{display:grid;grid-template-columns:minmax(550px,1.2fr) minmax(500px,2fr) mi
 .piste{position:relative;--c:var(--gold);display:grid;grid-template-columns:34px minmax(0,1fr) minmax(0,1fr);gap:6px;align-items:center;min-height:92px;padding:8px;border:1px solid var(--line);border-left:4px solid var(--c);border-radius:4px;background:var(--ink)}
 .piste.set{background:color-mix(in srgb,var(--c) 30%,var(--ink));border-color:var(--c)}
 .piste .num{font:700 24px 'Cormorant Garamond',serif;color:var(--gold2);cursor:pointer;text-align:center}
-.cap{grid-column:2/4;font-size:14px;min-height:20px;color:var(--gold2)}.cap span{color:var(--mut);margin-left:6px}.cap .ct{color:var(--gold2)}
+.cap{grid-column:2/4;font-size:14px;min-height:20px;color:var(--gold2)}.cap span{color:var(--mut);margin-left:6px}.cap .ct{color:var(--gold2)}.cap .pcl{font-size:11px;color:var(--mut);margin-left:6px}
 .piste select{min-width:0;width:100%;padding:6px 3px;font-size:12px;background:color-mix(in srgb,var(--ink) 60%,transparent)}
 .avance{min-height:300px;border:1px solid var(--gold);background:var(--panel);border-radius:6px;padding:12px}
 .avance h3{font-size:16px;color:var(--gold)}
@@ -290,7 +290,7 @@ function pisteHTML(id,C,used){
   ${cat?`<i class="ts">${lastStart(cat.id)}</i>`:""}<b class="num" data-p="${id}" title="Cliquer pour renommer">${esc(S.labels[id]||pad(id))}</b>
   <select data-k="cat" data-p="${id}"><option value="">Catégorie</option>${C.map(c=>`<option value="${c.id}"${c.id===a.cat?" selected":""}>${esc(c.name)}</option>`).join("")}</select>
   <select data-k="ref" data-p="${id}"><option value="">Arbitre</option>${refs.map(r=>`<option value="${r.id}"${r.id===a.ref?" selected":""}>${esc(r.name)} · ${lvTxt(r,w)}</option>`).join("")}</select>
-  <div class="cap">${cur?`<b>${esc(cur.name)}</b><span>${lvTxt(cur,w)}</span>`:""}${cat?`<span class="ct">${cur?"· ":""}${esc(cat.name)}</span>`:""}</div></div>`}
+  <div class="cap">${cur?`<b>${esc(cur.name)}</b>${cur.club?`<small class="pcl">${esc(cur.club)}</small>`:""}<span>${lvTxt(cur,w)}</span>`:""}${cat?`<span class="ct">${cur?"· ":""}${esc(cat.name)}</span>`:""}</div></div>`}
 function render(){normalize();normArb();
  renderRecap();renderProg();renderLaunch();renderArb();renderTitle();
  renderDays();
@@ -467,13 +467,13 @@ function normArb(){
  if(!(A.rowH>0))A.rowH=15}
 const money=v=>(v===""||v==null||isNaN(+v))?"":(+v).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})+" €";
 let arbSort=[];/* tri en cours : [{k:colonne,d:1|-1}] — Clic = tri, re-clic = inverse, 3e clic = retire ; Maj+clic = tri secondaire */
-const arbLbl=k=>k.startsWith("form:")?"Niveau "+W[k.slice(5)]:((S.arb.cols.find(c=>c.id===k)||{}).label||k);
+const arbLbl=k=>k==="form"?"Arme (épée, fleuret, sabre)":((S.arb.cols.find(c=>c.id===k)||{}).label||k);
 /* valeur de tri (null = vide, toujours placé en dernier) ; pour les cases, 0 = coché => « cochés d’abord » en ▲ */
 function sortVal(k,r,o){
  if(k==="nom"||k==="club"){const v=String(k==="nom"?r.name:r.club||"").trim();return v===""?null:v}
  if(k==="present")return r.absent?1:0;
  if(k==="paye")return o.paye?0:1;
- if(k.startsWith("form:")){const i=LV.indexOf(r.lv[k.slice(5)]);return i<0?null:i}
+ if(k==="form"){const i=Object.keys(W).findIndex(w=>r.lv[w]);return i<0?null:i}/* 0 = épée, 1 = fleuret, 2 = sabre (1re arme arbitrée) */
  if(k==="remun"){const m=o.retenue?S.arb.pay[o.retenue]:"";return(m===""||m==null||isNaN(+m))?null:+m}
  const c=S.arb.cols.find(x=>x.id===k),ty=c&&c.custom?c.type:BTYPE[k],v=o[k];
  if(ty==="case")return v?0:1;
@@ -509,7 +509,7 @@ function arbCell(c,r,o){const id=c.id,a=`data-ar="${r.id}"`,ty=c.custom?c.type:B
  return`<td><input type="text" value="${v}" ${a} data-ak="${id}"></td>`}
 function renderArb(){const A=S.arb,cols=A.cols.filter(c=>c.on),D=A.data[day]||{},rows=arbRows();
  const b=$("#arbBoth"),bo=!!(b&&b.checked);
- const th=cols.map(c=>c.id==="form"?`<th>${esc(c.label)} <span class="wsort">${Object.keys(W).map(w=>`<button data-sw="form:${w}" title="Trier par niveau en ${W[w]}">${AB[w]}${arbSi("form:"+w)}</button>`).join("")}</span></th>`:c.id==="signature"?`<th>${esc(c.label)}</th>`:`<th class="srt" data-sort="${c.id}" title="Cliquer pour trier (Maj+clic : tri secondaire)">${esc(c.label)}${arbSi(c.id)}</th>`).join("")+"<th>Gestion</th>";
+ const th=cols.map(c=>c.id==="form"?`<th class="srt" data-sort="form" title="Trier par arme : épées, puis fleurets, puis sabres (Maj+clic : tri secondaire)">${esc(c.label)}${arbSi("form")}</th>`:c.id==="signature"?`<th>${esc(c.label)}</th>`:`<th class="srt" data-sort="${c.id}" title="Cliquer pour trier (Maj+clic : tri secondaire)">${esc(c.label)}${arbSi(c.id)}</th>`).join("")+"<th>Gestion</th>";
  const sinfo=arbSort.length?`<span class="sortinfo">Tri : ${arbSort.map(s=>esc(arbLbl(s.k))+" "+(s.d>0?"▲":"▼")).join(", ")}</span><button data-ab="unsort">✕ Tri</button>`:'<span class="sortinfo">Clic sur un titre de colonne pour trier (Maj+clic : tri secondaire)</span>';
  const tr=rows.map(r=>{const o=D[r.id]||{};
   return`<tr class="${o.paye?"paid":""}${r.absent?" abs":""}">${cols.map(c=>arbCell(c,r,o)).join("")}<td><div class="rowc" style="margin:0;flex-wrap:nowrap"><label class="lv"><input type="checkbox" data-ar="${r.id}" data-af="both"${r.both?" checked":""}> 2 jours</label><button data-adel="${r.id}" title="Supprimer l’arbitre">✕</button></div></td></tr>`}).join("");
@@ -524,7 +524,7 @@ $("#arbBody").addEventListener("change",e=>{const t=e.target,d=t.dataset;if(!d.a
  else if(d.ak){const D=S.arb.data[day]=S.arb.data[day]||{},o=D[r.id]=D[r.id]||{};
   o[d.ak]=t.type==="checkbox"?t.checked:t.value;redo=(d.ak==="paye"||d.ak==="retenue")}
  else return;
- const ck=d.af==="name"?"nom":d.af==="club"?"club":d.af==="pres"?"present":d.af==="lv"?"form:"+d.aw:d.ak==="retenue"?"remun":d.ak||null;
+ const ck=d.af==="name"?"nom":d.af==="club"?"club":d.af==="pres"?"present":d.af==="lv"?"form":d.ak==="retenue"?"remun":d.ak||null;
  if(ck&&arbSort.some(s=>s.k===ck))redo=true;
  save();if(redo)render()});
 $("#arbBody").addEventListener("click",e=>{const h=e.target.closest("th[data-sort]");if(h)arbToggle(h.dataset.sort,e.shiftKey)});
