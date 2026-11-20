@@ -98,6 +98,12 @@ input[type=color]{padding:0;width:44px;height:32px}
 .at td.sg{min-width:160px;height:52px}
 .at .amt{white-space:nowrap;color:var(--gold2)}
 .at input[type=checkbox]{width:18px;height:18px}
+.at th.srt{cursor:pointer;user-select:none}.at th.srt:hover{color:var(--txt)}
+.at th .si{color:var(--txt);margin-left:4px;font-size:11px}.at th .si sub{font-size:9px}
+.at th .wsort{display:inline-flex;gap:3px;margin-left:6px;vertical-align:middle}
+.at th .wsort button{padding:1px 6px;font-size:11px;line-height:1.4}
+.sortinfo{color:var(--mut);font-size:12px}
+.dg p em.nmc{font-style:normal;min-width:0}.dg p em.nmc small{color:var(--mut);font-size:.82em;margin-left:4px}
 header{position:sticky;top:0;z-index:7;background:var(--bg)}
 #clock{font:600 20px 'Courier New',ui-monospace,monospace;color:var(--gold2);letter-spacing:.06em;font-variant-numeric:tabular-nums;white-space:nowrap}
 .dg button.pzb{padding:0 6px;font-size:12px;line-height:1.5;margin-left:4px}
@@ -246,9 +252,10 @@ function dayName(id){const n=wd(id);
 const iso=x=>x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0");
 const defRooms=()=>[{id:"r2",name:"Salle 2",cols:[[25,24,23,22,21,20,19,18,17,16,15,14,13]],hide:[]},{id:"r1",name:"Salle 1",cols:[[12,10,8,6,4,2],[11,9,7,5,3,1]],hide:[]}];
 const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const nmc=r=>`<em class="nmc">${esc(r.name)}${r.club?` <small>${esc(r.club)}</small>`:""}</em>`;
 const lvTxt=(r,w)=>w?(r.lv[w]||"—"):(Object.keys(r.lv).map(k=>AB[k]+" "+r.lv[k]).join(", ")||"—");
 const others=()=>S.days.filter(d=>d!==day);
-function sync(r){if(!r.both)return;for(const d of others()){let o=S.refs[d].find(x=>x.id===r.id);if(!o){o={id:r.id};S.refs[d].push(o)}o.name=r.name;o.lv={...r.lv};o.both=true}}
+function sync(r){if(!r.both)return;for(const d of others()){let o=S.refs[d].find(x=>x.id===r.id);if(!o){o={id:r.id};S.refs[d].push(o)}o.name=r.name;o.club=r.club;o.lv={...r.lv};o.both=true}}
 const pad=n=>String(n).padStart(2,"0");
 const cats=p=>Array.from({length:8},(_,i)=>({id:p+(i+1),name:(p==="sat"?"samedi":"dimanche")+(i+1),weapon:"epee"}));
 let S={days:["sat","sun"],rooms:defRooms(),labels:{},colors:{epee:"#c0392b",fleuret:"#2f6fdc",sabre:"#2e9e5b"},cats:{sat:cats("sat"),sun:cats("sun")},refs:{sat:[],sun:[]},assign:{sat:{},sun:{}},prog:{sat:{},sun:{}},dates:{sat:"2026-11-21",sun:"2026-11-22"},off:{sat:["t256","t128"],sun:["t256","t128"]}};
@@ -290,7 +297,7 @@ function render(){normalize();normArb();
  $("#legend").innerHTML=Object.keys(W).map(w=>`<span><i style="background:${S.colors[w]}"></i>${AB[w]}</span>`).join("");
  const used=placed(),C=S.cats[day];
  $("#dispo").innerHTML=Object.keys(W).map(w=>{const all=S.refs[day].filter(r=>r.lv[w]&&!r.absent),l=all.filter(r=>!used.has(r.id)&&!r.pause),pz=all.filter(r=>!used.has(r.id)&&r.pause).sort((a,b)=>a.pause-b.pause);
-  return`<div style="--c:${S.colors[w]}"><h3>${W[w]} (${l.length}/${all.length})</h3>${l.map(r=>`<p>${esc(r.name)}<span>${r.lv[w]} <button class="pzb" data-pz="${r.id}" title="Envoyer en pause">⏸</button></span></p>`).join("")||'<p><span>—</span></p>'}${pz.length?"<hr>"+pz.map(r=>`<p class="pz">${esc(r.name)}<span><b class="tm" data-pend="${r.pause}"></b> · fin ${hhmm(r.pause)} <button class="pzb" data-pzx="${r.id}" title="Retirer de la pause">▶</button></span></p>`).join(""):""}</div>`}).join("");pzTick();
+  return`<div style="--c:${S.colors[w]}"><h3>${W[w]} (${l.length}/${all.length})</h3>${l.map(r=>`<p>${nmc(r)}<span>${r.lv[w]} <button class="pzb" data-pz="${r.id}" title="Envoyer en pause">⏸</button></span></p>`).join("")||'<p><span>—</span></p>'}${pz.length?"<hr>"+pz.map(r=>`<p class="pz">${nmc(r)}<span><b class="tm" data-pend="${r.pause}"></b> · fin ${hhmm(r.pause)} <button class="pzb" data-pzx="${r.id}" title="Retirer de la pause">▶</button></span></p>`).join(""):""}</div>`}).join("");pzTick();
  const rh=r=>{const n=r.cols.length,rows=Math.max(0,...r.cols.map(c=>c.length));let cells="";
   for(let i=0;i<rows;i++)for(let j=0;j<n;j++){const id=r.cols[j][i];
    if(id===undefined||r.hide.includes(id)){if(n>1)cells+='<div class="ghost"></div>'}else cells+=pisteHTML(id,C,used)}
@@ -338,7 +345,7 @@ function addDay(){const last=S.days.map(i=>S.dates[i]).filter(Boolean).sort().po
  S.cats[id]=[];S.refs[id]=[];S.assign[id]={};S.prog[id]={};S.off[id]=["t256","t128"];
  const nm=(wd(id)||"jour").toLowerCase();
  S.cats[id]=Array.from({length:8},(_,i)=>({id:id+"_"+(i+1),name:nm+(i+1),weapon:"epee"}));
- for(const d of S.days)if(d!==id)for(const r of S.refs[d])if(r.both&&!S.refs[id].some(x=>x.id===r.id))S.refs[id].push({id:r.id,name:r.name,lv:{...r.lv},both:true});
+ for(const d of S.days)if(d!==id)for(const r of S.refs[d])if(r.both&&!S.refs[id].some(x=>x.id===r.id))S.refs[id].push({id:r.id,name:r.name,club:r.club,lv:{...r.lv},both:true});
  day=id;save();render();cfg()}
 function delDay(id){if(S.days.length<2){alert("Il faut garder au moins un jour.");return}
  if(!confirm("Supprimer « "+dayName(id)+" » et toutes ses données (catégories, arbitres, affectations, avancement) ?"))return;
@@ -434,13 +441,21 @@ $("#impf").onchange=async e=>{const f=e.target.files[0];if(!f)return;
  try{const o=JSON.parse(await f.text());if(!o.cats||!o.refs)throw 0;
   if(confirm("Remplacer toutes les données actuelles par cette sauvegarde ?")){if(!o.days)o.days=["sat","sun"];if(!o.rooms)o.rooms=defRooms();S=Object.assign(S,o);save();render()}}catch{alert("Fichier de sauvegarde invalide")}e.target.value=""};
 /* ===== Onglet Arbitres ===== */
-const ARBDEF=[["nom","Arbitre"],["form","Formations"],["present","Présent"],["arrivee","Heure d’arrivée"],["fin","Heure de fin"],["repas","Repas pris"],["remun","Rémunération"],["paye","Payé"],["signature","Signature"]];
+const ARBDEF=[["nom","Arbitre"],["club","Club"],["form","Formations"],["present","Présent"],["arrivee","Heure d’arrivée"],["fin","Heure de fin"],["repas","Repas pris"],["remun","Rémunération"],["paye","Payé"],["signature","Signature"]];
 const ARBTYPE={case:"Case à cocher",texte:"Texte",nombre:"Nombre",heure:"Heure"};
 const BTYPE={arrivee:"heure",fin:"heure",repas:"texte"};
 function normArb(){
  const A=S.arb=(S.arb&&typeof S.arb==="object")?S.arb:{};
  if(!Array.isArray(A.cols))A.cols=[];
- ARBDEF.forEach(([id,label])=>{if(!A.cols.some(c=>c.id===id)){const c={id,label,on:true},j=A.cols.findIndex(x=>x.id==="arrivee");if(id==="present"&&j>=0)A.cols.splice(j,0,c);else A.cols.push(c)}});
+ /* Colonne « Club » ajoutée à la main : elle devient une colonne native, les valeurs saisies sont conservées (reprises dans r.club) */
+ const cc=A.cols.find(c=>c.custom&&/^\s*club\s*$/i.test(String(c.label||"")));
+ if(cc){const old=cc.id,seen={},val=(d,r)=>((A.data&&A.data[d]&&A.data[d][r.id])||{})[old];
+  for(const d of S.days)for(const r of S.refs[d]||[]){const v=val(d,r);if(v!=null&&String(v).trim()!==""&&!r.club)r.club=String(v).trim();if(r.club&&!seen[r.id])seen[r.id]=r.club}
+  for(const d of S.days)for(const r of S.refs[d]||[])if(!r.club&&r.both&&seen[r.id])r.club=seen[r.id];
+  if(A.cols.some(c=>c.id==="club"))A.cols.splice(A.cols.indexOf(cc),1);
+  else{cc.id="club";cc.label="Club";delete cc.custom;delete cc.type}
+  if(Array.isArray(A.printHide))A.printHide=A.printHide.map(x=>x===old?"club":x)}
+ ARBDEF.forEach(([id,label])=>{if(!A.cols.some(c=>c.id===id)){const c={id,label,on:true},j=A.cols.findIndex(x=>x.id==="arrivee"),n=A.cols.findIndex(x=>x.id==="nom");if(id==="present"&&j>=0)A.cols.splice(j,0,c);else if(id==="club"&&n>=0)A.cols.splice(n+1,0,c);else A.cols.push(c)}});
  A.cols.forEach(c=>{if(c.id==="nom"||c.id==="present")c.on=true});
  for(const d of S.days)for(const r of S.refs[d]||[])if(r.absent===undefined)r.absent=!!A.migPresent;
  A.migPresent=true;
@@ -451,11 +466,35 @@ function normArb(){
  if(!Array.isArray(A.printHide))A.printHide=[];
  if(!(A.rowH>0))A.rowH=15}
 const money=v=>(v===""||v==null||isNaN(+v))?"":(+v).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})+" €";
+let arbSort=[];/* tri en cours : [{k:colonne,d:1|-1}] — Clic = tri, re-clic = inverse, 3e clic = retire ; Maj+clic = tri secondaire */
+const arbLbl=k=>k.startsWith("form:")?"Niveau "+W[k.slice(5)]:((S.arb.cols.find(c=>c.id===k)||{}).label||k);
+/* valeur de tri (null = vide, toujours placé en dernier) ; pour les cases, 0 = coché => « cochés d’abord » en ▲ */
+function sortVal(k,r,o){
+ if(k==="nom"||k==="club"){const v=String(k==="nom"?r.name:r.club||"").trim();return v===""?null:v}
+ if(k==="present")return r.absent?1:0;
+ if(k==="paye")return o.paye?0:1;
+ if(k.startsWith("form:")){const i=LV.indexOf(r.lv[k.slice(5)]);return i<0?null:i}
+ if(k==="remun"){const m=o.retenue?S.arb.pay[o.retenue]:"";return(m===""||m==null||isNaN(+m))?null:+m}
+ const c=S.arb.cols.find(x=>x.id===k),ty=c&&c.custom?c.type:BTYPE[k],v=o[k];
+ if(ty==="case")return v?0:1;
+ if(v==null||v==="")return null;
+ if(ty==="nombre")return isNaN(+v)?null:+v;
+ return String(v)}
+const cmpV=(a,b)=>typeof a==="number"&&typeof b==="number"?a-b:String(a).localeCompare(String(b),"fr",{sensitivity:"base",numeric:true});
 const arbRows=()=>{const D=S.arb.data[day]||{};
- return S.refs[day].slice().sort((a,b)=>(!!(D[a.id]||{}).paye-!!(D[b.id]||{}).paye)||String(a.name||"").localeCompare(String(b.name||""),"fr",{sensitivity:"base"}))};
+ const rows=S.refs[day].slice().sort((a,b)=>(!!(D[a.id]||{}).paye-!!(D[b.id]||{}).paye)||String(a.name||"").localeCompare(String(b.name||""),"fr",{sensitivity:"base"}));
+ if(!arbSort.length)return rows;
+ return rows.sort((x,y)=>{for(const s of arbSort){const a=sortVal(s.k,x,D[x.id]||{}),b=sortVal(s.k,y,D[y.id]||{});
+  if(a===null&&b===null)continue;if(a===null)return 1;if(b===null)return-1;const c=cmpV(a,b);if(c)return c*s.d}return 0})};
+function arbToggle(k,multi){const i=arbSort.findIndex(s=>s.k===k);
+ if(multi){if(i<0)arbSort.push({k,d:1});else if(arbSort[i].d===1)arbSort[i].d=-1;else arbSort.splice(i,1)}
+ else arbSort=i>=0?(arbSort[i].d===1?[{k,d:-1}]:[]):[{k,d:1}];
+ renderArb()}
+const arbSi=k=>{const i=arbSort.findIndex(s=>s.k===k);return i<0?"":`<span class="si">${arbSort[i].d>0?"▲":"▼"}${arbSort.length>1?`<sub>${i+1}</sub>`:""}</span>`};
 const ownLv=r=>[...new Set(Object.values(r.lv))].sort((a,b)=>{const x=LV.indexOf(a),y=LV.indexOf(b);return(x<0?99:x)-(y<0?99:y)});
 function arbCell(c,r,o){const id=c.id,a=`data-ar="${r.id}"`,ty=c.custom?c.type:BTYPE[id];
  if(id==="nom")return`<td><input type="text" value="${esc(r.name)}" ${a} data-af="name"></td>`;
+ if(id==="club")return`<td><input type="text" value="${esc(r.club||"")}" ${a} data-af="club"></td>`;
  if(id==="form")return`<td><div class="rowc" style="margin:0;flex-wrap:nowrap">${Object.keys(W).map(w=>`<label class="lv">${AB[w]}<select ${a} data-af="lv" data-aw="${w}"><option value="">—</option>${LV.concat(r.lv[w]&&!LV.includes(r.lv[w])?[r.lv[w]]:[]).map(l=>`<option${r.lv[w]===l?" selected":""}>${l}</option>`).join("")}</select></label>`).join("")}</div></td>`;
  if(id==="remun"){const own=ownLv(r);if(o.retenue&&!own.includes(o.retenue))own.push(o.retenue);
   const m=o.retenue?money(S.arb.pay[o.retenue]):"";
@@ -470,22 +509,29 @@ function arbCell(c,r,o){const id=c.id,a=`data-ar="${r.id}"`,ty=c.custom?c.type:B
  return`<td><input type="text" value="${v}" ${a} data-ak="${id}"></td>`}
 function renderArb(){const A=S.arb,cols=A.cols.filter(c=>c.on),D=A.data[day]||{},rows=arbRows();
  const b=$("#arbBoth"),bo=!!(b&&b.checked);
- const th=cols.map(c=>`<th>${esc(c.label)}</th>`).join("")+"<th>Gestion</th>";
+ const th=cols.map(c=>c.id==="form"?`<th>${esc(c.label)} <span class="wsort">${Object.keys(W).map(w=>`<button data-sw="form:${w}" title="Trier par niveau en ${W[w]}">${AB[w]}${arbSi("form:"+w)}</button>`).join("")}</span></th>`:c.id==="signature"?`<th>${esc(c.label)}</th>`:`<th class="srt" data-sort="${c.id}" title="Cliquer pour trier (Maj+clic : tri secondaire)">${esc(c.label)}${arbSi(c.id)}</th>`).join("")+"<th>Gestion</th>";
+ const sinfo=arbSort.length?`<span class="sortinfo">Tri : ${arbSort.map(s=>esc(arbLbl(s.k))+" "+(s.d>0?"▲":"▼")).join(", ")}</span><button data-ab="unsort">✕ Tri</button>`:'<span class="sortinfo">Clic sur un titre de colonne pour trier (Maj+clic : tri secondaire)</span>';
  const tr=rows.map(r=>{const o=D[r.id]||{};
   return`<tr class="${o.paye?"paid":""}${r.absent?" abs":""}">${cols.map(c=>arbCell(c,r,o)).join("")}<td><div class="rowc" style="margin:0;flex-wrap:nowrap"><label class="lv"><input type="checkbox" data-ar="${r.id}" data-af="both"${r.both?" checked":""}> 2 jours</label><button data-adel="${r.id}" title="Supprimer l’arbitre">✕</button></div></td></tr>`}).join("");
- $("#arbBody").innerHTML=`<h2>Arbitres — ${esc(dayName(day))}</h2><div class="bar"><button data-ab="add">+ Ajouter un arbitre</button><label class="lv"><input type="checkbox" id="arbBoth"${bo?" checked":""}> Présent les deux jours</label><span class="sp"></span><button data-ab="cols">⚙ Colonnes</button><button data-ab="print">🖨 Imprimer</button></div><div class="sc"><table class="at"><thead><tr>${th}</tr></thead><tbody>${tr||`<tr><td colspan="${cols.length+1}" style="color:var(--mut)">Aucun arbitre</td></tr>`}</tbody></table></div>`}
+ $("#arbBody").innerHTML=`<h2>Arbitres — ${esc(dayName(day))}</h2><div class="bar"><button data-ab="add">+ Ajouter un arbitre</button><label class="lv"><input type="checkbox" id="arbBoth"${bo?" checked":""}> Présent les deux jours</label>${sinfo}<span class="sp"></span><button data-ab="cols">⚙ Colonnes</button><button data-ab="print">🖨 Imprimer</button></div><div class="sc"><table class="at"><thead><tr>${th}</tr></thead><tbody>${tr||`<tr><td colspan="${cols.length+1}" style="color:var(--mut)">Aucun arbitre</td></tr>`}</tbody></table></div>`}
 $("#arbBody").addEventListener("change",e=>{const t=e.target,d=t.dataset;if(!d.ar)return;
  const r=S.refs[day].find(x=>x.id===d.ar);if(!r)return;let redo=true;
  if(d.af==="name"){r.name=t.value;sync(r)}
+ else if(d.af==="club"){r.club=t.value.trim();sync(r)}
  else if(d.af==="lv"){if(t.value)r.lv[d.aw]=t.value;else delete r.lv[d.aw];sync(r)}
  else if(d.af==="both"){r.both=t.checked;if(r.both)sync(r);else others().forEach(k=>{const o=S.refs[k].find(x=>x.id===r.id);if(o)o.both=false})}
  else if(d.af==="pres"){r.absent=!t.checked;if(r.absent)delete r.pause}
  else if(d.ak){const D=S.arb.data[day]=S.arb.data[day]||{},o=D[r.id]=D[r.id]||{};
   o[d.ak]=t.type==="checkbox"?t.checked:t.value;redo=(d.ak==="paye"||d.ak==="retenue")}
  else return;
+ const ck=d.af==="name"?"nom":d.af==="club"?"club":d.af==="pres"?"present":d.af==="lv"?"form:"+d.aw:d.ak==="retenue"?"remun":d.ak||null;
+ if(ck&&arbSort.some(s=>s.k===ck))redo=true;
  save();if(redo)render()});
+$("#arbBody").addEventListener("click",e=>{const h=e.target.closest("th[data-sort]");if(h)arbToggle(h.dataset.sort,e.shiftKey)});
 $("#arbBody").addEventListener("click",e=>{const t=e.target.closest("button");if(!t)return;const d=t.dataset;
  if(d.ab==="add"){const r={id:"r"+Date.now(),name:"Nouvel arbitre",lv:{},both:$("#arbBoth").checked,absent:true};S.refs[day].push(r);sync(r);save();render()}
+ else if(d.sw){arbToggle(d.sw,e.shiftKey)}
+ else if(d.ab==="unsort"){arbSort=[];renderArb()}
  else if(d.ab==="cols"){colMgr();$("#colOv").classList.add("show")}
  else if(d.ab==="print"){prDlg();$("#prOv").classList.add("show")}
  else if(d.adel){const r=S.refs[day].find(x=>x.id===d.adel);if(!r)return;
@@ -547,6 +593,7 @@ $("#prBody").addEventListener("change",e=>{const t=e.target,d=t.dataset,A=S.arb;
 $("#prClose").onclick=()=>$("#prOv").classList.remove("show");
 function printCell(c,r,o){const id=c.id,ty=c.custom?c.type:BTYPE[id];
  if(id==="nom")return`<td>${esc(r.name)}</td>`;
+ if(id==="club")return`<td>${esc(r.club||"")}</td>`;
  if(id==="form")return`<td>${esc(lvTxt(r))}</td>`;
  if(id==="signature")return`<td class="sg"></td>`;
  if(id==="present")return`<td style="text-align:center">${r.absent?"☐":"☑"}</td>`;
@@ -640,7 +687,7 @@ $("#su").onclick=async()=>{const e=$("#err");e.style.color="";
 $("#pw").onkeydown=e=>{if(e.key==="Enter")$("#go").click()};
 $("#out").onclick=()=>sb.auth.signOut();
 async function load(){const{data,error}=await sb.from("app_state").select("value").eq("key","state").maybeSingle();
- if(error){$("#st").textContent="Erreur de chargement (voir la table app_state)";console.error(error);return}
+ if(error){$("#st").textContent="Erreur de chargement (voir la table app_state) : "+(error.message||error.code||"inconnue");console.error(error);if(/jwt|token/i.test(error.message||""))sb.auth.signOut({scope:"local"});return}
  if(data&&data.value)S=Object.assign(S,data.value);loaded=true;render();$("#st").textContent=data?"Chargé":"Nouveau — rien d’enregistré"}
 sb.auth.onAuthStateChange((ev,session)=>{
  $("#loginOv").classList.toggle("show",!session);document.body.classList.toggle("locked",!session);
