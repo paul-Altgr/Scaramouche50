@@ -53,7 +53,7 @@ main{display:grid;grid-template-columns:minmax(550px,1.2fr) minmax(500px,2fr) mi
 .piste{position:relative;--c:var(--gold);display:grid;grid-template-columns:34px minmax(0,1fr) minmax(0,1fr);gap:6px;align-items:center;min-height:92px;padding:8px;border:1px solid var(--line);border-left:4px solid var(--c);border-radius:4px;background:var(--ink)}
 .piste.set{background:color-mix(in srgb,var(--c) 30%,var(--ink));border-color:var(--c)}
 .piste .num{font:700 24px 'Cormorant Garamond',serif;color:var(--gold2);cursor:pointer;text-align:center}
-.cap{grid-column:2/4;font-size:14px;min-height:20px;color:var(--gold2)}.cap span{color:var(--mut);margin-left:6px}.cap .ct{color:var(--gold2)}.cap .pcl{font-size:11px;color:var(--mut);margin-left:6px}
+.cap{grid-column:2/4;font-size:14px;min-height:20px;color:var(--gold2)}.cap span{color:var(--mut);margin-left:6px}.piste .trb{position:absolute;top:3px;right:5px;padding:0 6px;font-size:12px;line-height:1.5;z-index:1}.cap .ct{color:var(--gold2)}.cap .pcl{font-size:11px;color:var(--mut);margin-left:6px}
 .piste select{min-width:0;width:100%;padding:6px 3px;font-size:12px;background:color-mix(in srgb,var(--ink) 60%,transparent)}
 .avance{min-height:300px;border:1px solid var(--gold);background:var(--panel);border-radius:6px;padding:12px}
 .avance h3{font-size:16px;color:var(--gold)}
@@ -103,6 +103,10 @@ input[type=color]{padding:0;width:44px;height:32px}
 .at th .wsort{display:inline-flex;gap:3px;margin-left:6px;vertical-align:middle}
 .at th .wsort button{padding:1px 6px;font-size:11px;line-height:1.4}
 .sortinfo{color:var(--mut);font-size:12px}
+.dg p>span{white-space:nowrap;flex-shrink:0}
+.dg p b.fr{font-variant-numeric:tabular-nums;color:var(--gold2);font-weight:500;margin-right:6px}
+.dg .dn{grid-column:1/-1;border-top:1px dashed var(--line);padding-top:8px}.dg .dn h3{margin:0 0 4px}
+.dg .dn .dnc{display:inline-block;margin:2px 10px 2px 0;color:var(--mut)}.dg .dn .dnc small{margin-left:2px}
 .dg p em.nmc{font-style:normal;min-width:0}.dg p em.nmc small{color:var(--mut);font-size:.82em;margin-left:4px}
 header{position:sticky;top:0;z-index:7;background:var(--bg)}
 #clock{font:600 20px 'Courier New',ui-monospace,monospace;color:var(--gold2);letter-spacing:.06em;font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -235,6 +239,7 @@ body.locked>*:not(#loginOv){display:none!important}
 <div class="ov" id="prOv"><div class="box"><h2>Imprimer le tableau</h2><div id="prBody"></div><div class="rowc"><span class="sp"></span><button id="prClose">Annuler</button><button id="prGo">Imprimer</button></div></div></div>
 <div class="ov" id="ppOv"><div class="box"><h2>Imprimer le tableau d’avancement</h2><div id="ppBody"></div><div class="rowc"><span class="sp"></span><button id="ppClose">Annuler</button><button id="ppGo">Imprimer</button></div></div></div>
 <div class="ov" id="pzOv"><div class="box" style="width:min(420px,100%)"><h2 id="pzTitle">Pause</h2><p style="color:var(--mut);margin-top:0">Durée de la pause :</p><div class="rowc"><button data-pzm="10">10 min</button><button data-pzm="15">15 min</button><button data-pzm="20">20 min</button><button data-pzm="30">30 min</button><button data-pzm="45">45 min</button><button data-pzm="60">60 min</button></div><div class="rowc"><label class="lv">Autre durée <input type="number" id="pzMin" min="1" max="600" style="width:80px"> min</label><button id="pzOkM">OK</button></div><p style="color:var(--mut)">ou heure de fin de pause :</p><div class="rowc"><input type="time" id="pzEnd"><button id="pzOkE">OK</button></div><div class="rowc"><span class="sp"></span><button id="pzCancel">Annuler</button></div></div></div>
+<div class="ov" id="trOv"><div class="box" style="width:min(460px,100%)"><h2>Transférer la piste</h2><p id="trInfo" style="color:var(--mut);margin-top:0"></p><div class="rowc"><select id="trTo" style="width:100%"></select></div><p id="trWarn" style="color:var(--mut);font-size:13px"></p><div class="rowc"><span class="sp"></span><button id="trCancel">Annuler</button><button id="trOk" disabled>Confirmer le transfert</button></div></div></div>
 <div id="printArea"></div>
 
 <script>
@@ -252,6 +257,8 @@ function dayName(id){const n=wd(id);
 const iso=x=>x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0");
 const defRooms=()=>[{id:"r2",name:"Salle 2",cols:[[25,24,23,22,21,20,19,18,17,16,15,14,13]],hide:[]},{id:"r1",name:"Salle 1",cols:[[12,10,8,6,4,2],[11,9,7,5,3,1]],hide:[]}];
 const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const frt=r=>r.free?`<b class="fr" data-free="${r.free}" title="Depuis son retrait de la dernière piste"></b>`:"";
+const dnHTML=()=>{const l=S.refs[day].filter(r=>r.done&&!r.absent);return l.length?`<div class="dn"><h3>Terminés (${l.length})</h3>${l.map(r=>`<span class="dnc">${esc(r.name)} <small>fin ${hhmm(r.done)}</small> <button class="pzb" data-undo="${r.id}" title="Remettre disponible">↩</button></span>`).join("")}</div>`:""};
 const nmc=r=>`<em class="nmc">${esc(r.name)}${r.club?` <small>${esc(r.club)}</small>`:""}</em>`;
 const lvTxt=(r,w)=>w?(r.lv[w]||"—"):(Object.keys(r.lv).map(k=>AB[k]+" "+r.lv[k]).join(", ")||"—");
 const others=()=>S.days.filter(d=>d!==day);
@@ -273,7 +280,9 @@ function renderDays(){$("#days").innerHTML=S.days.map(d=>`<button data-d="${d}"$
 function clean(){const AC=active();for(const d of S.days){const A=S.assign[d],seen={};
  for(const p in A)if(!AC.has(p))delete A[p];
  for(const p in A){const a=A[p],c=S.cats[d].find(x=>x.id===a.cat),r=S.refs[d].find(x=>x.id===a.ref);
-  if(a.cat&&!c)a.cat="";if(a.ref&&(!r||r.absent||!c||!r.lv[c.weapon]||seen[a.ref]))a.ref="";if(a.ref)seen[a.ref]=1}}}
+  if(a.cat&&!c)a.cat="";if(a.ref&&(!r||r.absent||!c||!r.lv[c.weapon]||seen[a.ref]))a.ref="";if(a.ref)seen[a.ref]=1}
+ /* chrono « libre depuis » : horodatage du retrait d'un arbitre de sa dernière piste */
+ for(const r of S.refs[d]){if(seen[r.id]){r.on=true;delete r.free}else if(r.on){r.on=false;if(!r.absent)r.free=Date.now()}if(r.absent)delete r.free}}}
 function save(){clean();$("#st").textContent="Enregistrement…";clearTimeout(timer);
  timer=setTimeout(async()=>{const{error}=await sb.from("app_state").upsert({key:"state",value:S});
   $("#st").textContent=error?"Erreur d’enregistrement":"Enregistré";if(error)console.error(error)},600)}
@@ -285,9 +294,10 @@ const placed=()=>new Set(Object.values(S.assign[day]).map(a=>a.ref).filter(Boole
 
 function pisteHTML(id,C,used){
   const a=S.assign[day][id]||{},cat=C.find(c=>c.id===a.cat),w=cat&&cat.weapon;
-  const cur=S.refs[day].find(r=>r.id===a.ref);const refs=S.refs[day].filter(r=>r.id===a.ref||(!used.has(r.id)&&!r.absent&&!r.pause&&(!w||r.lv[w])));
+  const cur=S.refs[day].find(r=>r.id===a.ref);const refs=S.refs[day].filter(r=>r.id===a.ref||(!used.has(r.id)&&!r.absent&&!r.done&&!r.pause&&(!w||r.lv[w])));
   return`<div class="piste${cat?" set":""}" style="--c:${w?S.colors[w]:"var(--gold)"}">
   ${cat?`<i class="ts">${lastStart(cat.id)}</i>`:""}<b class="num" data-p="${id}" title="Cliquer pour renommer">${esc(S.labels[id]||pad(id))}</b>
+  ${cat||cur?`<button class="trb" data-tr="${id}" title="Transférer vers une autre piste">⇄</button>`:""}
   <select data-k="cat" data-p="${id}"><option value="">Catégorie</option>${C.map(c=>`<option value="${c.id}"${c.id===a.cat?" selected":""}>${esc(c.name)}</option>`).join("")}</select>
   <select data-k="ref" data-p="${id}"><option value="">Arbitre</option>${refs.map(r=>`<option value="${r.id}"${r.id===a.ref?" selected":""}>${esc(r.name)} · ${lvTxt(r,w)}</option>`).join("")}</select>
   <div class="cap">${cur?`<b>${esc(cur.name)}</b>${cur.club?`<small class="pcl">${esc(cur.club)}</small>`:""}<span>${lvTxt(cur,w)}</span>`:""}${cat?`<span class="ct">${cur?"· ":""}${esc(cat.name)}</span>`:""}</div></div>`}
@@ -296,8 +306,8 @@ function render(){normalize();normArb();
  renderDays();
  $("#legend").innerHTML=Object.keys(W).map(w=>`<span><i style="background:${S.colors[w]}"></i>${AB[w]}</span>`).join("");
  const used=placed(),C=S.cats[day];
- $("#dispo").innerHTML=Object.keys(W).map(w=>{const all=S.refs[day].filter(r=>r.lv[w]&&!r.absent),l=all.filter(r=>!used.has(r.id)&&!r.pause),pz=all.filter(r=>!used.has(r.id)&&r.pause).sort((a,b)=>a.pause-b.pause);
-  return`<div style="--c:${S.colors[w]}"><h3>${W[w]} (${l.length}/${all.length})</h3>${l.map(r=>`<p>${nmc(r)}<span>${r.lv[w]} <button class="pzb" data-pz="${r.id}" title="Envoyer en pause">⏸</button></span></p>`).join("")||'<p><span>—</span></p>'}${pz.length?"<hr>"+pz.map(r=>`<p class="pz">${nmc(r)}<span><b class="tm" data-pend="${r.pause}"></b> · fin ${hhmm(r.pause)} <button class="pzb" data-pzx="${r.id}" title="Retirer de la pause">▶</button></span></p>`).join(""):""}</div>`}).join("");pzTick();
+ $("#dispo").innerHTML=Object.keys(W).map(w=>{const all=S.refs[day].filter(r=>r.lv[w]&&!r.absent&&!r.done),l=all.filter(r=>!used.has(r.id)&&!r.pause),pz=all.filter(r=>!used.has(r.id)&&r.pause).sort((a,b)=>a.pause-b.pause);
+  return`<div style="--c:${S.colors[w]}"><h3>${W[w]} (${l.length}/${all.length})</h3>${l.map(r=>`<p>${nmc(r)}<span>${frt(r)}${r.lv[w]} <button class="pzb" data-pz="${r.id}" title="Envoyer en pause">⏸</button><button class="pzb" data-fin="${r.id}" title="Terminé : retirer de la liste et noter l’heure de fin">✓</button></span></p>`).join("")||'<p><span>—</span></p>'}${pz.length?"<hr>"+pz.map(r=>`<p class="pz">${nmc(r)}<span><b class="tm" data-pend="${r.pause}"></b> · fin ${hhmm(r.pause)} <button class="pzb" data-pzx="${r.id}" title="Retirer de la pause">▶</button><button class="pzb" data-fin="${r.id}" title="Terminé : retirer de la liste et noter l’heure de fin">✓</button></span></p>`).join(""):""}</div>`}).join("")+dnHTML();pzTick();
  const rh=r=>{const n=r.cols.length,rows=Math.max(0,...r.cols.map(c=>c.length));let cells="";
   for(let i=0;i<rows;i++)for(let j=0;j<n;j++){const id=r.cols[j][i];
    if(id===undefined||r.hide.includes(id)){if(n>1)cells+='<div class="ghost"></div>'}else cells+=pisteHTML(id,C,used)}
@@ -311,6 +321,7 @@ document.addEventListener("click",e=>{const t=e.target;
  if(t.classList.contains("num")){const v=prompt("Numéro de la piste :",t.textContent);if(v!==null&&v.trim()){S.labels[t.dataset.p]=v.trim();save();render()}}
  if(t.dataset.clr){const c=S.cats[day].find(x=>x.id===t.dataset.clr);
   if(c&&confirm("Vider toutes les pistes de « "+c.name+" » ? Les arbitres seront libérés.")){for(const p in S.assign[day])if(S.assign[day][p].cat===c.id)S.assign[day][p]={cat:"",ref:""};save();render()}}
+ if(t.dataset.tr)trOpen(t.dataset.tr);
  if(t.dataset.v){view=t.dataset.v;showView()}
  if(t.dataset.d){day=t.dataset.d;render();if($("#cfgOv").classList.contains("show"))cfg()}
  if(t.dataset.t){tab=t.dataset.t;cfg()}});
@@ -624,7 +635,7 @@ $("#cfgBody").addEventListener("change",e=>{const t=e.target,l=t.dataset.pay;if(
 /* Pause des arbitres disponibles */
 function hhmm(ms){const d=new Date(+ms);return pad(d.getHours())+":"+pad(d.getMinutes())}
 function pzFmt(sec){const n=sec<0,x=Math.abs(sec),h=Math.floor(x/3600),m=Math.floor(x%3600/60),q=x%60;return(n?"-":"")+(h?h+":"+pad(m):pad(m))+":"+pad(q)}
-function pzTick(){const now=Date.now();document.querySelectorAll("[data-pend]").forEach(el=>{const end=+el.dataset.pend;
+function pzTick(){const now=Date.now();document.querySelectorAll("[data-free]").forEach(el=>el.textContent=pzFmt(Math.max(0,Math.floor((now-+el.dataset.free)/1000))));document.querySelectorAll("[data-pend]").forEach(el=>{const end=+el.dataset.pend;
  el.textContent=pzFmt(Math.ceil((end-now)/1000));const p=el.closest("p");if(p)p.classList.toggle("late",end<=now)})}
 let pzRef=null;
 function pzOpen(id){const r=S.refs[day].find(x=>x.id===id);if(!r)return;pzRef=id;
@@ -639,7 +650,27 @@ $("#pzOv").addEventListener("click",e=>{const t=e.target;
  else if(t.id==="pzCancel")$("#pzOv").classList.remove("show")});
 $("#dispo").addEventListener("click",e=>{const t=e.target.closest("button");if(!t)return;
  if(t.dataset.pz)pzOpen(t.dataset.pz);
- else if(t.dataset.pzx){const r=S.refs[day].find(x=>x.id===t.dataset.pzx);if(r){delete r.pause;save();render()}}});
+ else if(t.dataset.pzx){const r=S.refs[day].find(x=>x.id===t.dataset.pzx);if(r){delete r.pause;save();render()}}
+ else if(t.dataset.fin){const r=S.refs[day].find(x=>x.id===t.dataset.fin);if(!r)return;
+  if(!confirm("Terminer « "+r.name+" » ?\nIl sera retiré des arbitres disponibles et son heure de fin sera notée ("+hhmm(Date.now())+")."))return;const now=Date.now();
+  r.done=now;delete r.pause;const D=S.arb.data[day]=S.arb.data[day]||{},o=D[r.id]=D[r.id]||{};o.fin=hhmm(now);save();render()}
+ else if(t.dataset.undo){const r=S.refs[day].find(x=>x.id===t.dataset.undo);if(!r)return;
+  const o=(S.arb.data[day]||{})[r.id];if(o&&o.fin===hhmm(r.done))delete o.fin;delete r.done;save();render()}});
+
+/* Transfert d'une piste vers une autre (catégorie + arbitre), avec confirmation */
+let trFrom=null;
+const pLbl=id=>S.labels[id]||pad(id);
+const pDesc=id=>{const b=S.assign[day][id]||{},c=S.cats[day].find(x=>x.id===b.cat),r=S.refs[day].find(x=>x.id===b.ref);return(b.cat||b.ref)?(c?c.name:"sans catégorie")+(r?" · "+r.name:""):""};
+function trOpen(id){if(!pDesc(id))return;trFrom=id;
+ $("#trInfo").innerHTML=`Piste <b>${esc(pLbl(id))}</b> : ${esc(pDesc(id))}<br>La catégorie et l’arbitre seront déplacés vers la piste choisie.`;
+ let o='<option value="">— Choisir la piste de destination —</option>';
+ for(const rm of S.rooms){const l=rm.cols.flat().filter(p=>p!==id&&!rm.hide.includes(p)).map(p=>{const d=pDesc(p);return`<option value="${p}">Piste ${esc(pLbl(p))} — ${d?esc(d)+" (sera échangée)":"libre"}</option>`}).join("");if(l)o+=`<optgroup label="${esc(rm.name)}">${l}</optgroup>`}
+ $("#trTo").innerHTML=o;$("#trWarn").textContent="";$("#trOk").disabled=true;$("#trOv").classList.add("show")}
+$("#trTo").onchange=()=>{const v=$("#trTo").value;$("#trOk").disabled=!v;$("#trWarn").textContent=v&&pDesc(v)?"La piste de destination est déjà occupée : les deux pistes seront échangées.":""};
+$("#trCancel").onclick=()=>{trFrom=null;$("#trOv").classList.remove("show")};
+$("#trOk").onclick=()=>{const to=$("#trTo").value,A=S.assign[day];if(!trFrom||!to)return;
+ const src={cat:"",ref:"",...(A[trFrom]||{})},dst={cat:"",ref:"",...(A[to]||{})};
+ A[to]=src;A[trFrom]=dst;trFrom=null;$("#trOv").classList.remove("show");save();render()};
 
 /* Horloge en direct */
 function tickClock(){const d=new Date();$("#clock").textContent=pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds());pzTick()}
